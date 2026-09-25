@@ -356,6 +356,7 @@ Modern Sky products and additional mechanisms such as USDS or a peg stability mo
 
 ## 11. Reading references
 
+- [DSS GitHub repository](https://github.com/sky-ecosystem/dss)
 - [DSS source at the inspected commit](https://github.com/makerdao/dss/tree/fa4f6630afb0624d04a003e920b0d71a00331d98)
 - [Maker/Sky whitepaper](https://makerdao.com/en/whitepaper/) — economic context; the linked page now also includes Sky-era additions.
 - [Sky developer documentation](https://developers.skyeco.com/) — broader protocol and integration documentation.
