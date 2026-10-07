@@ -35,11 +35,15 @@ contract JugUnitTest is Test {
     Jug internal jug;
     VatMock internal vat;
 
-    function setUp() public {        
+    function setUp() public {
         vat = new VatMock();
         jug = new Jug(address(vat));
         jug.init(ILK);
     }
+
+    /////////////////////////////////////
+    //              drip               //
+    /////////////////////////////////////
 
     // newRate = previousRate * ((base + duty) / RAY)^elapsedSeconds.
     // The 10% per-second examples below are deliberately large for easy arithmetic.
@@ -56,7 +60,6 @@ contract JugUnitTest is Test {
         // elapsedSeconds = block.timestamp - rho = 10 - 1 = 9
         // newRate = previousRate * ((base + duty) / RAY)^elapsedSeconds.
         // newRate = 2 × 2.1⁹ × 10²⁷ = 1.588560093162e30
-        assertEq(jug.drip(ILK), 1.588560093162e30);        
+        assertEq(jug.drip(ILK), 1.588560093162e30);
     }
-
 }

@@ -2,7 +2,7 @@
 pragma solidity 0.8.35;
 
 import {Test} from "forge-std/Test.sol";
-import {VatMath} from "../../src/libraries/VatMath.sol";
+import {VatMath} from "../../../src/libraries/VatMath.sol";
 
 contract VatMathHarness {
     function add(uint256 x, int256 y) public pure returns (uint256) {

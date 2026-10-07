@@ -181,11 +181,14 @@ contract Vat {
 
     // Sets the parameters spot, line and dust for the collateral type ilk
     function file(bytes32 ilk, bytes32 what, uint256 data) external auth vatIsAlive {
-        if (what == "spot") { // Price with safety margin
+        if (what == "spot") {
+            // Price with safety margin
             s_ilks[ilk].spot = data;
-        } else if (what == "line") { // Debt ceiling
+        } else if (what == "line") {
+            // Debt ceiling
             s_ilks[ilk].line = data;
-        } else if (what == "dust") { // Debt floor
+        } else if (what == "dust") {
+            // Debt floor
             s_ilks[ilk].dust = data;
         } else {
             revert Vat__FileUnrecognizedParam();
@@ -301,15 +304,15 @@ contract Vat {
     // Changes the accumuated debt multiplier for a collateral type and
     // accounts for the resulting change in debt
     //
-    // The central idea is that fold changes the shared multiplier without rewriting each vault. 
-    // The vault owes more, its collateral and normalized debt stay unchanged, 
+    // The central idea is that fold changes the shared multiplier without rewriting each vault.
+    // The vault owes more, its collateral and normalized debt stay unchanged,
     // and the additional internal Dai goes to the recipient u
-    // 
+    //
     // - i: collateral type or ilk
     // - u: the address whose internal Dai balance receives the adjustment
-    // - rate: a signed change to the accumulated multiplier, not its new value or an annual interest rate 
-    function fold(bytes32 i, address u, int rate) external auth vatIsAlive{
-        // Reading the collateral 
+    // - rate: a signed change to the accumulated multiplier, not its new value or an annual interest rate
+    function fold(bytes32 i, address u, int256 rate) external auth vatIsAlive {
+        // Reading the collateral
         Ilk storage ilk = s_ilks[i];
         // Adds the signed increment to the stored multiplier
         // Changing the shared multiplier changes every vault's debt without
@@ -319,7 +322,7 @@ contract Vat {
         // Update the vault's debt
         // ilk.art is the total normalized debt for that collateral type
         // Vault's debt = urn.art * ilk.rate
-        int rad = ilk.art.mul(rate);
+        int256 rad = ilk.art.mul(rate);
 
         // Apply the adjustment to u's internal Dai balance
         // - Positive rad: credits Dai to u
@@ -350,7 +353,7 @@ contract Vat {
     function urns(bytes32 ilk, address user) external view returns (Urn memory) {
         return s_urns[ilk][user];
     }
-    
+
     function ilks(bytes32 ilk) external view returns (Ilk memory) {
         return s_ilks[ilk];
     }

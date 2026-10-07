@@ -2,7 +2,7 @@
 pragma solidity 0.8.35;
 
 import {Test} from "forge-std/Test.sol";
-import {JugMath} from "../../src/libraries/JugMath.sol";
+import {JugMath} from "../../../src/libraries/JugMath.sol";
 
 contract JugMathHarness {
     function diff(uint256 x, uint256 y) public pure returns (int256) {

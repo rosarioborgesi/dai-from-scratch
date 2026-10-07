@@ -151,9 +151,9 @@ contract Jug {
         }
     }
 
-    // Accrues stability fess for a collateral type (ilk) from its last 
-    // update until the current block timestamp. 
-    // It updates the debt multiplier in Vat and credits the accrued fees to vow. 
+    // Accrues stability fess for a collateral type (ilk) from its last
+    // update until the current block timestamp.
+    // It updates the debt multiplier in Vat and credits the accrued fees to vow.
 
     // the new rate returned by this method is a debt multipler used to calculate the actual debt
     // actual debt = normalized debt x rate
@@ -183,7 +183,7 @@ contract Jug {
 
     //////////////////////////////////////////////////////
     //      External & Public View & Pure Functions     //
-    //////////////////////////////////////////////////////    
+    //////////////////////////////////////////////////////
     function ilks(bytes32 ilk) external view returns (Ilk memory) {
         return s_ilks[ilk];
     }
