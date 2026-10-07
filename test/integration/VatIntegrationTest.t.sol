@@ -8,7 +8,7 @@ import {DSSProxy} from "../proxy/DssProxy.sol";
 import {MockWETH} from "../mocks/MockWETH.sol";
 
 contract DepositIntegrationTest is Test {
-    bytes32 internal constant WETH_A = "WETH-A";    
+    bytes32 internal constant WETH_A = "WETH-A";
 
     Vat internal vat;
     MockWETH internal weth;
@@ -28,7 +28,7 @@ contract DepositIntegrationTest is Test {
         vat.rely(address(gemJoin));
     }
 
-    // DEPOSIT - frob function 
+    // DEPOSIT - frob function
 
     // User can wrap 1 ETH into WETH and lock it as vault collateral without borrowing any Dai
     // Similar to testLockGem in https://github.com/sky-ecosystem/dss-proxy-actions/blob/master/src/DssProxyActions.t.sol
@@ -40,18 +40,17 @@ contract DepositIntegrationTest is Test {
         vm.startPrank(user);
         weth.deposit{value: AMOUNT}();
         // Allow the proxy to transfer that WETH
-        weth.approve(address(proxy), AMOUNT);        
+        weth.approve(address(proxy), AMOUNT);
 
         // Deposit and lock the collateral
-        proxy.lockGem(address(gemJoin), WETH-A, user, AMOUNT, true);
+        proxy.lockGem(address(gemJoin), WETH_A, user, AMOUNT, true);
         vm.stopPrank();
 
         assertEq(weth.balanceOf(address(gemJoin)), AMOUNT);
         assertEq(weth.balanceOf(user), 0);
         assertEq(weth.balanceOf(address(proxy)), 0);
 
-
-        Vat.Urn memory urn = vat.urns(WETH_A, user);     
+        Vat.Urn memory urn = vat.urns(WETH_A, user);
         // User's collateral locked in the vault
         assertEq(urn.ink, AMOUNT);
         // User's vault normalized debt

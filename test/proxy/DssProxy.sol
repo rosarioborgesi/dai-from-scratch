@@ -52,7 +52,7 @@ interface VatLike {
 contract DSSProxy {
     ////////////////////////////////
     //            Errors          //
-    ////////////////////////////////    
+    ////////////////////////////////
     error DSSProxy__ZeroAddress();
     error DSSProxy__Overflow();
     error DSSProxy__UnsupportedDecimals();

@@ -36,10 +36,10 @@ The original:
     }
 ```
 
-with the library [`math.sol`](../src/libraries/math.sol):
+with the library [`VatMath.sol`](../src/libraries/VatMath.sol):
 
 ```solidity
-library math {
+library VatMath {
     function _add(uint x, int y) internal pure returns (uint z) {
         unchecked { z = x + uint(y); }
         require(y >= 0 || z <= x);

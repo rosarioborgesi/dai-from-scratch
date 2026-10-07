@@ -2,29 +2,32 @@
 pragma solidity 0.8.35;
 
 import {Test} from "forge-std/Test.sol";
-import {Math} from "../../src/libraries/Math.sol";
+import {VatMath} from "../../src/libraries/VatMath.sol";
 
-contract MathHarness {
+contract VatMathHarness {
     function add(uint256 x, int256 y) public pure returns (uint256) {
-        return Math.add(x, y);
+        return VatMath.add(x, y);
     }
 
     function sub(uint256 x, int256 y) public pure returns (uint256) {
-        return Math.sub(x, y);
+        return VatMath.sub(x, y);
     }
 
     function mul(uint256 x, int256 y) public pure returns (int256) {
-        return Math.mul(x, y);
+        return VatMath.mul(x, y);
     }
 }
 
-contract MathUnitTest is Test {
-    MathHarness internal harness;
+contract VatMathUnitTest is Test {
+    VatMathHarness internal harness;
 
     function setUp() public {
-        harness = new MathHarness();
+        harness = new VatMathHarness();
     }
 
+    ////////////////////////////////////
+    //              add               //
+    ////////////////////////////////////
     function test_Add_PositiveOperand() public view {
         assertEq(harness.add(7, 5), 12);
     }
@@ -47,6 +50,19 @@ contract MathUnitTest is Test {
         assertEq(harness.add(type(uint256).max - 1, 1), type(uint256).max);
     }
 
+    function test_Add_RevertOnOverflow() public {
+        vm.expectRevert(VatMath.VatMath__Overflow.selector);
+        harness.add(type(uint256).max, 1);
+    }
+
+    function test_Add_RevertOnUnderflow() public {
+        vm.expectRevert(VatMath.VatMath__Underflow.selector);
+        harness.add(0, -1);
+    }
+
+    ////////////////////////////////////
+    //              sub               //
+    ////////////////////////////////////
     function test_Sub_PositiveOperand() public view {
         assertEq(harness.sub(7, 5), 2);
     }
@@ -74,6 +90,19 @@ contract MathUnitTest is Test {
         assertEq(harness.sub(uint256(type(int256).max), type(int256).min), type(uint256).max);
     }
 
+    function test_Sub_RevertOnUnderflow() public {
+        vm.expectRevert(VatMath.VatMath__Underflow.selector);
+        harness.sub(0, 1);
+    }
+
+    function test_Sub_RevertOnOverflow() public {
+        vm.expectRevert(VatMath.VatMath__Overflow.selector);
+        harness.sub(type(uint256).max, -1);
+    }
+
+    ////////////////////////////////////
+    //              mul               //
+    ////////////////////////////////////
     function test_Mul_PositiveProduct() public view {
         assertEq(harness.mul(7, 5), 35);
     }
@@ -98,28 +127,8 @@ contract MathUnitTest is Test {
         assertEq(harness.mul(1, type(int256).min), type(int256).min);
     }
 
-    function test_Add_RevertOnOverflow() public {
-        vm.expectRevert();
-        harness.add(type(uint256).max, 1);
-    }
-
-    function test_Add_RevertOnUnderflow() public {
-        vm.expectRevert();
-        harness.add(0, -1);
-    }
-
-    function test_Sub_RevertOnUnderflow() public {
-        vm.expectRevert();
-        harness.sub(0, 1);
-    }
-
-    function test_Sub_RevertOnOverflow() public {
-        vm.expectRevert();
-        harness.sub(type(uint256).max, -1);
-    }
-
     function test_Mul_RevertOnUintMaxInput() public {
-        vm.expectRevert();
+        vm.expectRevert(VatMath.VatMath__Int256OutOfRange.selector);
         harness.mul(type(uint256).max, -1);
     }
 

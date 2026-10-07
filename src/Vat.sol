@@ -23,7 +23,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.35;
 
-import {Math} from "./libraries/Math.sol";
+import {VatMath} from "./libraries/VatMath.sol";
 
 // It is the core Vault engine of dss.
 // It stores and tracks all the associated Dai and collateral balances.
@@ -46,7 +46,7 @@ contract Vat {
     ///////////////////////////////////
     //            Libraries          //
     ///////////////////////////////////
-    using Math for uint256;
+    using VatMath for uint256;
 
     ///////////////////////////////////////////
     //            Type Declarations          //
@@ -54,8 +54,8 @@ contract Vat {
 
     // Data structure for a collateral type
     struct Ilk {
-        uint256 art; // Total Normalised Debt        [wad]
-        uint256 rate; // Accumulated Debt Multiplier [ray] Actual vault debt = art × rate
+        uint256 art; // Total Normalized Debt        [wad]
+        uint256 rate; // Accumulated Debt Multiplier [ray] NOTE: Actual vault debt = art × rate
         uint256 spot; // Price with Safety Margin    [ray]
         uint256 line; // Debt Ceiling                [rad]
         uint256 dust; // Urn Debt Floor              [rad]
@@ -71,7 +71,7 @@ contract Vat {
     //            State Variables          //
     /////////////////////////////////////////
     // Stores the addresses that have administrative permission in the contract. (0 not authorized, 1 authorized)
-    mapping(address => uint256) private s_wards;
+    mapping(address user => uint256 auth) private s_wards;
 
     // Records who has permission to act on whose behalf
     // can[owner][operator]
@@ -79,20 +79,20 @@ contract Vat {
     // - 0: the owner has not authorized the operator—the default.
     mapping(address owner => mapping(address operator => uint256 auth)) private s_can;
 
-    // Stores Ilk data for each collateral type (ilkType).
+    // Stores Ilk data for each collateral type (ilk).
     // For example: "ETH-A" → Ilk { Art, rate, spot, line, dust }
-    mapping(bytes32 ilkType => Ilk data) private s_ilks;
+    mapping(bytes32 ilk => Ilk data) private s_ilks;
 
-    // Stores For each collateral type (ilkType) and for each vault (urn) the vault's data (data)
-    mapping(bytes32 ilkType => mapping(address urn => Urn data)) private s_urns;
+    // Stores For each collateral type (ilk) and for each vault (urn) the vault's data (data)
+    mapping(bytes32 ilk => mapping(address urn => Urn data)) private s_urns;
 
     // s_gem[i][v] is address v’s free collateral balance for collateral type i.
     // This collateral is already inside the system but is not locked in a vault.
     // Example: s_gem["ETH-A"][user]
-    mapping(bytes32 ilkType => mapping(address user => uint256 balance)) private s_gem; // [wad]
+    mapping(bytes32 ilk => mapping(address user => uint256 balance)) private s_gem; // [wad]
 
     // Stores user’s internal Dai balance
-    mapping(address user => uint256 balance) private s_dai; // [wad]
+    mapping(address user => uint256 balance) private s_dai; // [rad]
 
     // Stores unbacked debt assigned to a user
     mapping(address user => uint256 balance) private s_sin; // [rad]
@@ -146,10 +146,7 @@ contract Vat {
     }
 
     // Revokes administrative permissions to the user
-    function deny(address user) external auth {
-        if (s_live != 1) {
-            revert Vat__NotLive();
-        }
+    function deny(address user) external auth vatIsAlive {
         s_wards[user] = 0;
     }
 
@@ -184,11 +181,11 @@ contract Vat {
 
     // Sets the parameters spot, line and dust for the collateral type ilk
     function file(bytes32 ilk, bytes32 what, uint256 data) external auth vatIsAlive {
-        if (what == "spot") {
+        if (what == "spot") { // Price with safety margin
             s_ilks[ilk].spot = data;
-        } else if (what == "line") {
+        } else if (what == "line") { // Debt ceiling
             s_ilks[ilk].line = data;
-        } else if (what == "dust") {
+        } else if (what == "dust") { // Debt floor
             s_ilks[ilk].dust = data;
         } else {
             revert Vat__FileUnrecognizedParam();
@@ -299,8 +296,39 @@ contract Vat {
 
         // Save the collateral type's updated total debt
         s_ilks[i] = ilk;
-    } 
-    
+    }
+
+    // Changes the accumuated debt multiplier for a collateral type and
+    // accounts for the resulting change in debt
+    //
+    // The central idea is that fold changes the shared multiplier without rewriting each vault. 
+    // The vault owes more, its collateral and normalized debt stay unchanged, 
+    // and the additional internal Dai goes to the recipient u
+    // 
+    // - i: collateral type or ilk
+    // - u: the address whose internal Dai balance receives the adjustment
+    // - rate: a signed change to the accumulated multiplier, not its new value or an annual interest rate 
+    function fold(bytes32 i, address u, int rate) external auth vatIsAlive{
+        // Reading the collateral 
+        Ilk storage ilk = s_ilks[i];
+        // Adds the signed increment to the stored multiplier
+        // Changing the shared multiplier changes every vault's debt without
+        // updating individual vaults.
+        ilk.rate = ilk.rate.add(rate);
+
+        // Update the vault's debt
+        // ilk.art is the total normalized debt for that collateral type
+        // Vault's debt = urn.art * ilk.rate
+        int rad = ilk.art.mul(rate);
+
+        // Apply the adjustment to u's internal Dai balance
+        // - Positive rad: credits Dai to u
+        // - Negative rad: removes Dai from u
+        s_dai[u] = s_dai[u].add(rad);
+        // Update the global total Dai issued by the same amount
+        s_debt = s_debt.add(rad);
+    }
+
     ////////////////////////////////////////////
     //            Internal Functions          //
     ////////////////////////////////////////////
@@ -312,10 +340,6 @@ contract Vat {
         return bit == user || s_can[bit][user] == 1;
     }
 
-    //TODO
-    //fold
-
-
     //////////////////////////////////////////////////////
     //      External & Public View & Pure Functions     //
     //////////////////////////////////////////////////////
@@ -324,6 +348,38 @@ contract Vat {
     }
 
     function urns(bytes32 ilk, address user) external view returns (Urn memory) {
-        return s_urns[ilk][user];        
+        return s_urns[ilk][user];
+    }
+    
+    function ilks(bytes32 ilk) external view returns (Ilk memory) {
+        return s_ilks[ilk];
+    }
+
+    function wards(address user) external view returns (uint256) {
+        return s_wards[user];
+    }
+
+    function can(address owner, address operator) external view returns (uint256) {
+        return s_can[owner][operator];
+    }
+
+    function dai(address user) external view returns (uint256) {
+        return s_dai[user];
+    }
+
+    function sin(address user) external view returns (uint256) {
+        return s_sin[user];
+    }
+
+    function debt() external view returns (uint256) {
+        return s_debt;
+    }
+
+    function vice() external view returns (uint256) {
+        return s_vice;
+    }
+
+    function live() external view returns (uint256) {
+        return s_live;
     }
 }
