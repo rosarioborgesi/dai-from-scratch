@@ -83,7 +83,7 @@ contract VatUnitTest is Test {
         assertEq(vat.urns(ILK, v).art, 0);
         assertEq(vat.urns(ILK, w).ink, 0);
         assertEq(vat.urns(ILK, w).art, 0);
-    }    
+    }
 
     /////////////////////////////////////
     //              fold               //

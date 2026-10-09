@@ -3,7 +3,9 @@ src = "src"
 out = "out"
 libs = ["lib"]
 solc = "0.8.35"
-
+remappings = [
+  "openzeppelin-contracts/=lib/openzeppelin-contracts/contracts/"
+]
 
 [lint]
 exclude_lints = [
