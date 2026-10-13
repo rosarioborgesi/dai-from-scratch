@@ -21,7 +21,7 @@ From the original Math functions:
     }
 ```
 
-I have removed the _add function because we don't need to check against overflow in Solidity 0.8.35, I have converted _rpow from assembly into Solidity and also updated the function _diff and _rmul into solidity 0.8.35 and moved the code into the library JugMath.sol .
+I have removed the _add function because we don't need to check against overflow in Solidity 0.8.35, and also updated the function _diff and _rmul into solidity 0.8.35 and moved the code into the library JugMath.sol .
 
 ```solidity
     function diff(uint256 x, uint256 y) internal pure returns (int256) {
@@ -37,6 +37,34 @@ I have removed the _add function because we don't need to check against overflow
     }
 ```
 
+# rpow
+
+The rpow function was kept as the original in assembly but moved to JugMath.sol
+
+How _rpow works in Jug original DSS code 
+
+Yes—**`_rpow` computes the compounding multiplier**, while `drip` applies it to the accumulated stability-fee rate.
+
+[`_rpow`](/home/rosario/linux_workspaces/dss/src/jug.sol:62) is a general fixed-point exponentiation function:
+
+$$
+\operatorname{\_rpow}(x,n,b) \approx b\left(\frac{x}{b}\right)^n
+$$
+
+In [`drip`](/home/rosario/linux_workspaces/dss/src/jug.sol:125), its inputs are:
+
+- `x = base + duty`: the per-second growth factor.
+- `n = now - rho`: seconds since the last update.
+- `b = ONE = 10²⁷`: the fixed-point scale, called a *ray*.
+
+So the calculation is:
+
+$$
+\text{new rate} \approx \text{previous rate}
+\times \left(\frac{\text{base}+\text{duty}}{10^{27}}\right)^{\text{elapsed seconds}}
+$$
+
+This compounds the stability fee **once per second**. `_rpow` uses exponentiation by squaring to compute it efficiently, with rounding and overflow checks.
 
 # drip
 The function drip returns the new rate.

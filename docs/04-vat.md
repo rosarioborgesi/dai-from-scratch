@@ -1,5 +1,7 @@
 # Vat
-The Vat is the core Vault engine of dss. It stores Vaults and tracks all the associated Dai and collateral balances. 
+The Vat is the core Vault engine of dss.
+
+The **Vat** is the shared ledger at the heart of the Maker Protocol, tracking collateral and debt across all vaults. Each protocol deployment has one Vat, so every vault and collateral type follows the same accounting rules. Individual vault positions are recorded as **Urns**, while the settings for each collateral type are stored as **Ilks**.
 
 
 # Math

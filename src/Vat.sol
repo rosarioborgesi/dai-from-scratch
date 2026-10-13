@@ -42,6 +42,7 @@ contract Vat {
     error Vat__NotAllowedW();
     error Vat__Dust();
     error Vat__FileUnrecognizedParam();
+    error Vat__NotAllowed();
 
     ///////////////////////////////////
     //            Libraries          //
@@ -92,7 +93,7 @@ contract Vat {
     mapping(bytes32 ilk => mapping(address user => uint256 balance)) private s_gem; // [wad]
 
     // Stores user’s internal Dai balance
-    mapping(address user => uint256 balance) private s_dai; // [rad]
+    mapping(address account => uint256 balance) private s_dai; // [rad]
 
     // Stores unbacked debt assigned to a user
     mapping(address user => uint256 balance) private s_sin; // [rad]
@@ -140,7 +141,7 @@ contract Vat {
     ////////////////////////////////////////////
     //            External Functions          //
     ////////////////////////////////////////////
-    // Grants administrative permissions the user
+    // Grants administrative permissions to the user
     function rely(address user) external auth vatIsAlive {
         s_wards[user] = 1;
     }
@@ -201,8 +202,8 @@ contract Vat {
     }
 
     // Modify a user's collateral balance.
-    function slip(bytes32 ilk, address user, int256 amount) external auth {
-        s_gem[ilk][user] = s_gem[ilk][user].add(amount);
+    function slip(bytes32 ilk, address user, int256 wad) external auth {
+        s_gem[ilk][user] = s_gem[ilk][user].add(wad);
     }
 
     /**
@@ -332,6 +333,22 @@ contract Vat {
         s_debt = s_debt.add(rad);
     }
 
+    // Transfers internal Dai balance from one address to another within the Vat
+    // Parameters:
+    // - src: the address whose balance is debited
+    // - dst: the address whose balance is credited
+    // - rad: the amount, using 45 decimal places
+    function move(address src, address dst, uint256 rad) external {
+        // Check permission. The caller must be src or an address that src authorized through hope
+        if (!_wish(src, msg.sender)) {
+            revert Vat__NotAllowed();
+        }
+        // Subtract from the source
+        s_dai[src] -= rad;
+        // Add to the destination
+        s_dai[dst] += rad;
+    }
+
     ////////////////////////////////////////////
     //            Internal Functions          //
     ////////////////////////////////////////////
@@ -366,8 +383,8 @@ contract Vat {
         return s_can[owner][operator];
     }
 
-    function dai(address user) external view returns (uint256) {
-        return s_dai[user];
+    function dai(address account) external view returns (uint256) {
+        return s_dai[account];
     }
 
     function sin(address user) external view returns (uint256) {

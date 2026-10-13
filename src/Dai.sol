@@ -112,16 +112,16 @@ contract Dai is ERC20, EIP712 {
         s_wards[user] = 0;
     }
 
-    function mint(address user, uint256 amount) external auth {
-        _mint(user, amount);
+    function mint(address user, uint256 wad) external auth {
+        _mint(user, wad);
     }
 
-    function burn(address user, uint256 amount) external {
+    function burn(address user, uint256 wad) external {
         address spender = _msgSender();
         if (user != spender) {
-            _spendAllowance(user, spender, amount);
+            _spendAllowance(user, spender, wad);
         }
-        _burn(user, amount);
+        _burn(user, wad);
     }
 
     // Approve by signature

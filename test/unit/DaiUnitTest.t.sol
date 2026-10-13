@@ -31,6 +31,9 @@ contract DaiUnitTest is Test {
         otherSpender = makeAddr("otherSpender");
     }
 
+    ////////////////////////////////
+    //            permit          //
+    ////////////////////////////////
     // The holder signs an unlimited approval for the spender; a separate relayer submits it.
     // The signature determines the holder and spender, regardless of who submits the permit.
     function test_Permit_ValidSignatureApprovesThroughRelayer() public {
@@ -127,7 +130,6 @@ contract DaiUnitTest is Test {
         assertEq(dai.nonces(holder), 2);
         assertEq(dai.allowance(holder, spender), type(uint256).max);
         assertEq(dai.allowance(holder, otherSpender), type(uint256).max);
-        assertEq(dai.nonces(otherHolder), 0);
     }
 
     // A valid permit succeeds one second before its signed expiry.

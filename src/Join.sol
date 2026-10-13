@@ -81,12 +81,12 @@ contract GemJoin {
     //            State Variables          //
     /////////////////////////////////////////
     // Stores the addresses that have administrative permission in the contract. (0 not authorized, 1 authorized)
-    mapping(address => uint256) private s_wards;
+    mapping(address user => uint256 auth) private s_wards;
 
     // Vat associated with this Join
     VatLike private immutable i_vat;
 
-    // Id of the Collateral associated with this Join
+    // Collateral type associated with this Join
     bytes32 private immutable i_ilk;
 
     // Collateral token associated with this Join
@@ -102,8 +102,10 @@ contract GemJoin {
     //            Events          //
     ////////////////////////////////
     event Rely(address indexed user);
+    event Deny(address indexed user);
     // Amount is in native token units, matching the tokens transferred.
     event Join(address indexed user, uint256 amount);
+    event Cage();
 
     ///////////////////////////////////
     //            Modifiers          //
@@ -137,6 +139,23 @@ contract GemJoin {
     ////////////////////////////////////////////
     //            External Functions          //
     ////////////////////////////////////////////
+    // Grants administrative permissions to the user
+    function rely(address user) external auth {
+        s_wards[user] = 1;
+        emit Rely(user);
+    }
+
+    // Revokes administrative permissions to the user
+    function deny(address user) external auth {
+        s_wards[user] = 0;
+        emit Deny(user);
+    }
+
+    // Freezes this contract
+    function cage() external auth {
+        s_live = 0;
+        emit Cage();
+    }
 
     // Deposits ERC-20 collateral into the GemJoin (adapter)
     // and credits the tokens amount in the user collateral balance inside the Vat contract.
@@ -163,6 +182,8 @@ contract GemJoin {
         emit Join(user, amount);
     }
 
+    // TODO exit is missing
+
     //////////////////////////////////////////////////////
     //      External & Public View & Pure Functions     //
     //////////////////////////////////////////////////////
@@ -172,6 +193,108 @@ contract GemJoin {
 
     function gem() external view returns (GemLike) {
         return i_gem;
+    }
+}
+
+contract DaiJoin {
+    ////////////////////////////////
+    //            Errors          //
+    ////////////////////////////////
+    error DaiJoin__NotAuthorized();
+    error DaiJoin__NotLive();
+
+    ///////////////////////////////////////////
+    //            Type Declarations          //
+    ///////////////////////////////////////////
+
+    /////////////////////////////////////////
+    //            State Variables          //
+    /////////////////////////////////////////
+    // Stores the addresses that have administrative permission in the contract. (0 not authorized, 1 authorized)
+    mapping(address user => uint256 auth) private s_wards;
+
+    // Vat associated with this join
+    VatLike private immutable i_vat;
+
+    // Dai token associated with this join 
+    DSTokenLike private immutable i_dai;
+
+    // Indicates whether the contract is active (1) or shut down (0)
+    uint256 private s_live;
+
+    uint256 private constant ONE = 1e27;
+
+    ////////////////////////////////
+    //            Events          //
+    ////////////////////////////////
+    event Rely(address indexed user);
+    event Deny(address indexed user);
+    event Join(address indexed usr, uint256 wad);
+    event Exit(address indexed user, uint256 wad);
+    event Cage();
+
+    ///////////////////////////////////
+    //            Modifiers          //
+    ///////////////////////////////////
+    modifier auth {
+        if (s_wards[msg.sender] != 1) {
+            revert DaiJoin__NotAuthorized();
+        }
+        _;
+    }
+
+    modifier isJoinAlive {
+        if (s_live != 1) {
+            revert DaiJoin__NotLive();
+        }
+        _;
+    }
+
+    ///////////////////////////////////
+    //            Functions          //
+    ///////////////////////////////////
+    constructor(address vat, address dai) {
+        // Gives administrative permissions to msg.sender
+        s_wards[msg.sender] = 1;
+        // Sets the contract as active
+        s_live = 1;
+        // Initializes the Vat
+        i_vat = VatLike(vat);
+        // Initializes the Dai token
+        i_dai = DSTokenLike(dai);
+    }
+
+    ////////////////////////////////////////////
+    //            External Functions          //
+    ////////////////////////////////////////////
+    // Grants administrative permissions to the user
+    function rely(address user) external auth {
+        s_wards[user] = 1;
+        emit Rely(user);
+    }
+
+    // Revokes administrative permissions to the user
+    function deny(address user) external auth {
+        s_wards[user] = 0;
+        emit Deny(user);
+    }
+
+    // Converts external Dai into an internal Dai balance
+    function join(address user, uint256 wad) external {
+        // Moves internal Dai from the adapter to user
+        i_vat.move(address(this), user, ONE * wad);
+        // Burns external Dai units from msg.sender
+        i_dai.burn(msg.sender, wad);
+        emit Join(user, wad);
+    }
+
+    // Converts the the caller's internal Dai balance in the Vat into external Dai tokens.
+    function exit(address user, uint256 wad) external isJoinAlive {
+        // Moves internal Dai from the caller's into the adapter
+        i_vat.move(msg.sender, address(this), ONE * wad);
+        // Mints external Dai to the user.
+        i_dai.mint(user, wad);
+        emit Exit(user, wad);
     }
 }
 

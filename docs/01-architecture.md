@@ -86,6 +86,8 @@ Filenames below refer to the reference DSS repository; they do not prescribe fil
 
 ### A ledger independent of tokens
 
+The `Vat` is the Maker Protocol’s central accounting ledger. It records collateral and debt for all vaults and collateral types, ensuring they follow the same accounting rules. Each protocol deployment uses one shared Vat, which stores individual vault positions as `Urns` and collateral type configurations as `Ilks`.
+
 `Vat` is the center of the system. It tracks numbers and permissions without calling external contracts. It does not transfer ERC-20 tokens or query an oracle itself.
 
 Its main records are:
