@@ -60,8 +60,8 @@ interface JugLike {
 }
 
 // Proxy that allows the user to interact with the DSS system
-// This is a convienience helper that user can call and
-// groups all the calls needed to perform a specific operation like: locking collateral borrow dai and so on..
+// This is a convienience helper that user can call to perform operation like locking collateral, borrowing Dai and so on...
+// without having to call the function needed on the different contract.
 // Inspired by https://github.com/sky-ecosystem/dss-proxy-actions/blob/master/src/DssProxyActions.sol
 contract DSSProxy {
     ////////////////////////////////
@@ -107,6 +107,42 @@ contract DSSProxy {
         GemJoinLike(adapter).join(urn, amount);
     }
 
+    // Takes the ETH sent with the call (msg.value) and deposits it into the Vat as WETH collateral.
+    // - adapter: adapter address
+    // - urn: is the address credited with the collateral balance  inside the Vat. 
+    function ethJoin_join(address adapter, address urn) public payable {
+        // Wraps ETH in WETH
+        GemJoinLike(adapter).gem().deposit{value: msg.value}();
+        // Approves adapter to take the WETH amount
+        GemJoinLike(adapter).gem().approve(address(adapter), msg.value);
+        // Credits the WETH amount of collateral to the address urn in the Vat.
+        GemJoinLike(adapter).join(urn, msg.value);
+    }
+
+    ////////////////////////////////////////////
+    //            External Functions          //
+    ////////////////////////////////////////////
+
+    // takes the ETH sent with the call and locks it as collateral in an existing Vault
+    function lockETH(
+        bytes32 ilk,
+        address ethJoin
+    ) external payable {
+        // Deposits the ETH into the Vat.
+        ethJoin_join(ethJoin, address(this));
+        // Locks that collateral in the Vault.
+        // - msg.sender: identifies the user’s vault.
+        // - address(this): holds the newly deposited free collateral.
+        i_vat.frob(
+            ilk,
+            msg.sender,
+            address(this),
+            address(this),
+            _toInt(msg.value),
+            0
+        );
+    }
+
     // Deposits (or locks) collateral tokens into an existing vault, without borrowing any DAI.
     // User deposits collateral into its own vault.
     // - gemJoin: the adapter for the collateral token
@@ -138,7 +174,7 @@ contract DSSProxy {
         i_vat.frob(ilk, msg.sender, msg.sender, msg.sender, 0, dart);
 
         // 2. Move internal Dai to the proxy.
-        i_vat.move(msg.sender, address(this), toRad(wad));
+        i_vat.move(msg.sender, address(this), _toRad(wad));
 
         // 3. Allows adapter to access to proxy's DAI balance in the vat
         if(i_vat.can(address(this), daiJoin) == 0) {
@@ -178,7 +214,7 @@ contract DSSProxy {
         i_vat.frob(ilk, msg.sender, msg.sender, msg.sender, dink, dart);
 
         // 3. Move internal Dai from msg.sender to the proxy.
-        i_vat.move(msg.sender, address(this), toRad(wadDai));
+        i_vat.move(msg.sender, address(this), _toRad(wadDai));
 
         // 4. Allows adapter to access to proxy's DAI balance in the vat
         if(i_vat.can(address(this), daiJoin) == 0) {
@@ -240,7 +276,7 @@ contract DSSProxy {
         return int256(amount);
     }
 
-    function toRad(uint wad) internal pure returns (uint rad) {
+    function _toRad(uint wad) internal pure returns (uint rad) {
         rad = wad * RAY;
     }
 

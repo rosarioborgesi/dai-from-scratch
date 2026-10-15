@@ -56,7 +56,7 @@ contract Jug {
     ///////////////////////////////////////////
     struct Ilk {
         uint256 duty; // Collateral-specific, per-second stability fee contribution [ray]
-        uint256 rho; // Tupe of the last drip [unix epoch time]
+        uint256 rho; // Time of last drip [unix epoch time]
     }
 
     /////////////////////////////////////////
@@ -151,7 +151,7 @@ contract Jug {
         }
     }
 
-    // Accrues stability fess for a collateral type (ilk) from its last
+    // Accrues stability fees for a collateral type (ilk) from its last
     // update until the current block timestamp.
     // It updates the debt multiplier in Vat and credits the accrued fees to vow.
 

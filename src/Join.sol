@@ -118,6 +118,14 @@ contract GemJoin {
         _;
     }
 
+    modifier isGemJoinAlive {
+        // Check that the contract is alive
+        if (s_live != 1) {
+            revert GemJoin__NotLive();
+        }
+        _;
+    }
+
     ///////////////////////////////////
     //            Functions          //
     ///////////////////////////////////
@@ -158,13 +166,12 @@ contract GemJoin {
     }
 
     // Deposits ERC-20 collateral into the GemJoin (adapter)
-    // and credits the tokens amount in the user collateral balance inside the Vat contract.
+    // and credits the tokens amount in the user free collateral balance inside the Vat contract.
     // This is implementation is from join-5.sol: https://github.com/sky-ecosystem/dss-gem-joins/blob/master/src/join-5.sol
-    function join(address user, uint256 amount) external {
-        // Check that the contract is alive
-        if (s_live != 1) {
-            revert GemJoin__NotLive();
-        }
+    // - user: is the address whose free collateral balance in the Vat gets credited.
+    // - amount is the amount deposited in the token's native units.
+    //      The adapter converts it to 18-decimal units before crediting the Vat.
+    function join(address user, uint256 amount) external isGemJoinAlive {        
         // Token transfers use native decimals; Vat collateral uses 18 decimals.
         uint256 wad = amount * (10 ** (18 - i_dec));
         // Check the normalized amount before casting to int256.
@@ -243,7 +250,7 @@ contract DaiJoin {
         _;
     }
 
-    modifier isJoinAlive {
+    modifier isDaiJoinAlive {
         if (s_live != 1) {
             revert DaiJoin__NotLive();
         }
@@ -289,7 +296,7 @@ contract DaiJoin {
     }
 
     // Converts the the caller's internal Dai balance in the Vat into external Dai tokens.
-    function exit(address user, uint256 wad) external isJoinAlive {
+    function exit(address user, uint256 wad) external isDaiJoinAlive {
         // Moves internal Dai from the caller's into the adapter
         i_vat.move(msg.sender, address(this), ONE * wad);
         // Mints external Dai to the user.
