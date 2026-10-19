@@ -51,12 +51,12 @@ interface GemJoinLike {
 interface DaiJoinLike {
     function vat() external returns (VatLike);
     function dai() external returns (GemLike);
-    function join(address, uint) external payable;
-    function exit(address, uint) external;
+    function join(address, uint256) external payable;
+    function exit(address, uint256) external;
 }
 
 interface JugLike {
-    function drip(bytes32) external returns (uint);
+    function drip(bytes32) external returns (uint256);
 }
 
 // Proxy that allows the user to interact with the DSS system
@@ -77,6 +77,7 @@ contract DSSProxy {
     VatLike private immutable i_vat;
 
     uint256 private constant RAY = 1e27;
+
     ///////////////////////////////////
     //            Functions          //
     ///////////////////////////////////
@@ -109,7 +110,7 @@ contract DSSProxy {
 
     // Takes the ETH sent with the call (msg.value) and deposits it into the Vat as WETH collateral.
     // - adapter: adapter address
-    // - urn: is the address credited with the collateral balance  inside the Vat. 
+    // - urn: is the address credited with the collateral balance  inside the Vat.
     function ethJoin_join(address adapter, address urn) public payable {
         // Wraps ETH in WETH
         GemJoinLike(adapter).gem().deposit{value: msg.value}();
@@ -124,23 +125,13 @@ contract DSSProxy {
     ////////////////////////////////////////////
 
     // takes the ETH sent with the call and locks it as collateral in an existing Vault
-    function lockETH(
-        bytes32 ilk,
-        address ethJoin
-    ) external payable {
+    function lockETH(bytes32 ilk, address ethJoin) external payable {
         // Deposits the ETH into the Vat.
         ethJoin_join(ethJoin, address(this));
         // Locks that collateral in the Vault.
         // - msg.sender: identifies the user’s vault.
         // - address(this): holds the newly deposited free collateral.
-        i_vat.frob(
-            ilk,
-            msg.sender,
-            address(this),
-            address(this),
-            _toInt(msg.value),
-            0
-        );
+        i_vat.frob(ilk, msg.sender, address(this), address(this), _toInt(msg.value), 0);
     }
 
     // Deposits (or locks) collateral tokens into an existing vault, without borrowing any DAI.
@@ -162,12 +153,7 @@ contract DSSProxy {
     // - jug: contract that calculates the new rate
     // - daiJoin: adapter for Dai to borrow
     // - wad: Dai amount to receive
-    function draw (
-        bytes32 ilk,
-        address jug,
-        address daiJoin,
-        uint256 wad
-    ) external {
+    function draw(bytes32 ilk, address jug, address daiJoin, uint256 wad) external {
         // 1. Calculate and generate the required debt
         //  The 0 means no collateral change. The last argument, dart, is the increase in normalized debt.
         int256 dart = _getDrawDart(jug, msg.sender, ilk, wad);
@@ -177,13 +163,13 @@ contract DSSProxy {
         i_vat.move(msg.sender, address(this), _toRad(wad));
 
         // 3. Allows adapter to access to proxy's DAI balance in the vat
-        if(i_vat.can(address(this), daiJoin) == 0) {
+        if (i_vat.can(address(this), daiJoin) == 0) {
             i_vat.hope(daiJoin);
         }
 
         // 4. Send ERC-20 Dai to the caller.
         //  DaiJoin takes that internal balance from the proxy, and mints ERC-20 Dai to the user.
-        DaiJoinLike(daiJoin).exit(msg.sender, wad);    
+        DaiJoinLike(daiJoin).exit(msg.sender, wad);
     }
 
     // Deposits ERC-20 collateral and borrows in one call.
@@ -217,14 +203,15 @@ contract DSSProxy {
         i_vat.move(msg.sender, address(this), _toRad(wadDai));
 
         // 4. Allows adapter to access to proxy's DAI balance in the vat
-        if(i_vat.can(address(this), daiJoin) == 0) {
+        if (i_vat.can(address(this), daiJoin) == 0) {
             i_vat.hope(daiJoin);
         }
 
         // 5. Send ERC-20 Dai to the caller.
         //  DaiJoin takes that internal balance from the proxy, and mints ERC-20 Dai to the user.
-        DaiJoinLike(daiJoin).exit(msg.sender, wadDai);  
+        DaiJoinLike(daiJoin).exit(msg.sender, wadDai);
     }
+
     // TODO openLockGemAndDraw(...): also creates the vault. ETH equivalents exist.
 
     ////////////////////////////////////////////
@@ -234,20 +221,15 @@ contract DSSProxy {
     // Calculates how much normalized debt a vault must add to withdraw wad DAI,
     // accounting for DAI already held by the vault inside the Vat.
     // - wad: DAI requested for withdrawal
-    function _getDrawDart (
-        address jug,
-        address urn,
-        bytes32 ilk,
-        uint wad
-    ) internal returns (int dart) {
+    function _getDrawDart(address jug, address urn, bytes32 ilk, uint256 wad) internal returns (int256 dart) {
         // Updates the stability fee rate
-        uint rate = JugLike(jug).drip(ilk);
+        uint256 rate = JugLike(jug).drip(ilk);
 
         // Get the vault's internal DAI balance
         uint256 dai = i_vat.dai(urn);
 
         // dart stays zero when the existing balance covers the withdrawal.
-        if(dai < wad * RAY) {
+        if (dai < wad * RAY) {
             // Calculates how much additional normalized debt (dart) is needed to cover the requested DAI withdrawal
             // additional normalized debt (dart) = (requested DAI - existing DAI) / debt multiplier
             dart = _toInt((wad * RAY - dai) / rate);
@@ -276,7 +258,7 @@ contract DSSProxy {
         return int256(amount);
     }
 
-    function _toRad(uint wad) internal pure returns (uint rad) {
+    function _toRad(uint256 wad) internal pure returns (uint256 rad) {
         rad = wad * RAY;
     }
 

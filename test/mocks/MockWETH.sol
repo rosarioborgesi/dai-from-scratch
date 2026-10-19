@@ -16,13 +16,13 @@ contract MockWETH is ERC20 {
         _mint(msg.sender, msg.value);
     }
 
-    function withdraw(uint256 amount) external  {
+    function withdraw(uint256 amount) external {
         address account = _msgSender();
 
         // Update balances before making the external call.
         _burn(account, amount);
 
-        (bool success, ) = payable(account).call{value: amount}("");
+        (bool success,) = payable(account).call{value: amount}("");
         if (!success) {
             revert EtherTransferFailed();
         }

@@ -118,7 +118,7 @@ contract GemJoin {
         _;
     }
 
-    modifier isGemJoinAlive {
+    modifier isGemJoinAlive() {
         // Check that the contract is alive
         if (s_live != 1) {
             revert GemJoin__NotLive();
@@ -171,7 +171,7 @@ contract GemJoin {
     // - user: is the address whose free collateral balance in the Vat gets credited.
     // - amount is the amount deposited in the token's native units.
     //      The adapter converts it to 18-decimal units before crediting the Vat.
-    function join(address user, uint256 amount) external isGemJoinAlive {        
+    function join(address user, uint256 amount) external isGemJoinAlive {
         // Token transfers use native decimals; Vat collateral uses 18 decimals.
         uint256 wad = amount * (10 ** (18 - i_dec));
         // Check the normalized amount before casting to int256.
@@ -223,7 +223,7 @@ contract DaiJoin {
     // Vat associated with this join
     VatLike private immutable i_vat;
 
-    // Dai token associated with this join 
+    // Dai token associated with this join
     DSTokenLike private immutable i_dai;
 
     // Indicates whether the contract is active (1) or shut down (0)
@@ -243,14 +243,14 @@ contract DaiJoin {
     ///////////////////////////////////
     //            Modifiers          //
     ///////////////////////////////////
-    modifier auth {
+    modifier auth() {
         if (s_wards[msg.sender] != 1) {
             revert DaiJoin__NotAuthorized();
         }
         _;
     }
 
-    modifier isDaiJoinAlive {
+    modifier isDaiJoinAlive() {
         if (s_live != 1) {
             revert DaiJoin__NotLive();
         }

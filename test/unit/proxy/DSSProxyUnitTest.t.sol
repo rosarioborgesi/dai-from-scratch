@@ -6,7 +6,7 @@ import {DSSProxy, JugLike, VatLike} from "../../proxy/DssProxy.sol";
 
 contract MockVat is VatLike {
     error MockVat__UnsupportedCall();
-    
+
     mapping(address urn => uint256 balance) private s_dai;
 
     function setDai(address urn, uint256 balance) external {
@@ -58,10 +58,7 @@ contract MockJug is JugLike {
 contract DSSProxyHarness is DSSProxy {
     constructor(address vat) DSSProxy(vat) {}
 
-    function getDrawDart(address jug, address urn, bytes32 ilk, uint256 wad)
-        external
-        returns (int256)
-    {
+    function getDrawDart(address jug, address urn, bytes32 ilk, uint256 wad) external returns (int256) {
         return _getDrawDart(jug, urn, ilk, wad);
     }
 }
@@ -86,8 +83,8 @@ contract DSSProxyUnitTest is Test {
     //      _getDrawDart      //
     ////////////////////////////
 
-    // The user requests 100 DAI and the vault already holds 20 internal DAI, 
-    // so the system must generate another 80 DAI. 
+    // The user requests 100 DAI and the vault already holds 20 internal DAI,
+    // so the system must generate another 80 DAI.
     // 80 DAI at a rate of 1.25 which correspond to 64 units of normalized debt
     function test_GetDrawDart_AccountsForExistingDaiAndRate() public {
         // Internal DAI uses rad (45 decimals); rate uses ray (27 decimals).

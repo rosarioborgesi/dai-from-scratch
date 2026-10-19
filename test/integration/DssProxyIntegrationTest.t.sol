@@ -26,7 +26,7 @@ contract DssProxyIntegrationTest is Test {
     function setUp() public {
         user = makeAddr("user");
         vat = new Vat();
-        weth = new MockWETH(); 
+        weth = new MockWETH();
         gemJoin = new GemJoin(address(vat), WETH_A, address(weth));
         proxy = new DSSProxy(address(vat));
         dai = new Dai();
@@ -45,7 +45,6 @@ contract DssProxyIntegrationTest is Test {
         vat.file(WETH_A, "spot", 2_000 * RAY); // Price with Safety Margin
         vat.file(WETH_A, "line", 10_000 ether * RAY); // Debt ceiling
         vat.file("Line", 10_000 ether * RAY); // Total Debt Ceiling
-
     }
 
     //////////////////////////////////////////////////
@@ -75,13 +74,13 @@ contract DssProxyIntegrationTest is Test {
         assertEq(weth.balanceOf(user), 0);
         assertEq(weth.balanceOf(address(proxy)), 0);
         assertEq(vat.gem(WETH_A, user), 0); // User’s free collateral in Vat
-        assertEq(vat.gem(WETH_A, address(proxy)), 0); // Proxy’s free collateral in Vat 
+        assertEq(vat.gem(WETH_A, address(proxy)), 0); // Proxy’s free collateral in Vat
 
         Vat.Urn memory urn = vat.urns(WETH_A, user);
         assertEq(urn.ink, collateral); // Vault's locked collateral
-        assertEq(urn.art, 0); // User's vault normalized debt 
+        assertEq(urn.art, 0); // User's vault normalized debt
         assertEq(vat.urns(WETH_A, address(proxy)).ink, 0);
-        assertEq(vat.urns(WETH_A, address(proxy)).art, 0); 
+        assertEq(vat.urns(WETH_A, address(proxy)).art, 0);
     }
 
     // The user locks 2 ETH from a 5 ETH balance and keeps the remaining 3 ETH.
@@ -98,7 +97,7 @@ contract DssProxyIntegrationTest is Test {
         proxy.lockETH{value: collateral}(WETH_A, address(gemJoin));
 
         Vat.Urn memory urn = vat.urns(WETH_A, user);
-        assertEq(urn.ink, collateral); // User's collateral locked in the vault  
+        assertEq(urn.ink, collateral); // User's collateral locked in the vault
         assertEq(urn.art, 0);
         assertEq(user.balance, initialBalance - collateral);
         assertEq(address(proxy).balance, 0);
@@ -114,7 +113,7 @@ contract DssProxyIntegrationTest is Test {
     //      lockGem - Depositing ERC-20 collateral     //
     /////////////////////////////////////////////////////
 
-    // User can wrap 1 ETH into WETH and lock it as vault collateral without borrowing any Dai    
+    // User can wrap 1 ETH into WETH and lock it as vault collateral without borrowing any Dai
     function test_UserDepositsAndLocksWeth() public {
         uint256 AMOUNT = 1 ether;
         // Give the user ETH
@@ -130,7 +129,7 @@ contract DssProxyIntegrationTest is Test {
         vm.stopPrank();
 
         // For a deposit of 1 WETH
-        
+
         // Vat balance	                                                After join	   After frob
         // Proxy’s free collateral (s_gem[WETH_A][address(proxy)])	    1 WETH	       0
         // User’s free collateral (s_gem[WETH_A][user])	                0	           0
@@ -140,10 +139,10 @@ contract DssProxyIntegrationTest is Test {
         assertEq(weth.balanceOf(user), 0);
         assertEq(weth.balanceOf(address(proxy)), 0);
 
-        Vat.Urn memory urn = vat.urns(WETH_A, user);        
-        assertEq(urn.ink, AMOUNT); // User's collateral locked in the vault        
-        assertEq(urn.art, 0); // User's vault normalized debt        
-        assertEq(vat.gem(WETH_A, address(proxy)), 0); // Proxy’s free collateral in Vat        
+        Vat.Urn memory urn = vat.urns(WETH_A, user);
+        assertEq(urn.ink, AMOUNT); // User's collateral locked in the vault
+        assertEq(urn.art, 0); // User's vault normalized debt
+        assertEq(vat.gem(WETH_A, address(proxy)), 0); // Proxy’s free collateral in Vat
         assertEq(vat.gem(WETH_A, user), 0); // User’s free collateral in Vat
     }
 
@@ -165,7 +164,7 @@ contract DssProxyIntegrationTest is Test {
         vm.stopPrank();
 
         Vat.Urn memory urn = vat.urns(WETH_A, user);
-        assertEq(urn.ink, collateral); // User's collateral locked in the vault  
+        assertEq(urn.ink, collateral); // User's collateral locked in the vault
         assertEq(urn.art, 0);
         assertEq(weth.balanceOf(user), initialBalance - collateral);
         assertEq(weth.balanceOf(address(gemJoin)), collateral);
@@ -205,14 +204,14 @@ contract DssProxyIntegrationTest is Test {
         assertEq(vat.ilks(WETH_A).rate, RAY);
         assertEq(urn.art, borrowed); // Normalized debt in the urn
         assertEq(vat.debt(), borrowed * RAY); // Total Dai issued
-        assertEq(dai.balanceOf(user), borrowed); 
+        assertEq(dai.balanceOf(user), borrowed);
         assertEq(dai.totalSupply(), borrowed);
         assertEq(dai.balanceOf(address(proxy)), 0);
 
         // All generated internal Dai was moved through the proxy into DaiJoin.
         assertEq(vat.dai(user), 0);
         assertEq(vat.dai(address(proxy)), 0);
-        assertEq(vat.dai(address(daiJoin)), borrowed * RAY);        
+        assertEq(vat.dai(address(daiJoin)), borrowed * RAY);
         assertEq(weth.balanceOf(address(gemJoin)), collateral);
     }
 
@@ -232,9 +231,7 @@ contract DssProxyIntegrationTest is Test {
         // Vat sees the proxy as its caller when it locks collateral and draws Dai.
         vat.hope(address(proxy));
 
-        proxy.lockGemAndDraw(
-            WETH_A, address(jug), address(gemJoin), address(daiJoin), collateral, borrowed, true
-        );
+        proxy.lockGemAndDraw(WETH_A, address(jug), address(gemJoin), address(daiJoin), collateral, borrowed, true);
         vm.stopPrank();
 
         // All deposited WETH is held by GemJoin and locked in the user's vault.
@@ -253,7 +250,7 @@ contract DssProxyIntegrationTest is Test {
         assertEq(vat.ilks(WETH_A).rate, RAY);
         assertEq(urn.art, borrowed); // User's normalized debt in the vault
         assertEq(vat.ilks(WETH_A).art, borrowed); // Total normalized debt for WETH_A collateral
-        assertEq(vat.debt(), borrowed * RAY); // Total Dai Issued 
+        assertEq(vat.debt(), borrowed * RAY); // Total Dai Issued
         assertEq(dai.balanceOf(user), borrowed);
         assertEq(dai.totalSupply(), borrowed);
         assertEq(dai.balanceOf(address(proxy)), 0);
@@ -283,7 +280,7 @@ contract DssProxyIntegrationTest is Test {
 
         assertEq(vat.ilks(WETH_A).rate, RAY); // rate is not updated because we haven't called drip yet
         assertEq(jug.drip(WETH_A), duty); // Drip returns the new rate 1.05 * RAY
-        assertEq(vat.ilks(WETH_A).rate, duty);  // After calling drip the rate is updated to 1.05 * RAY
+        assertEq(vat.ilks(WETH_A).rate, duty); // After calling drip the rate is updated to 1.05 * RAY
         assertEq(jug.ilks(WETH_A).rho, initalTimestamp + 1); // rho is updated inside drip
 
         // There is no outstanding debt yet, so this changes the multiplier without generating fees on an existing loan.
@@ -304,13 +301,13 @@ contract DssProxyIntegrationTest is Test {
         vm.stopPrank();
 
         assertEq(vat.ilks(WETH_A).rate, duty); // no additional time has elapsed so the rate remains 1.05
-        
+
         // normalized debt (art) = actual debt / rate = 300 / 1.05 ≈ 285.714285714285714286
         uint256 expectedArt = borrowed * RAY / duty + 1;
-        
+
         Vat.Urn memory urn = vat.urns(WETH_A, user);
-        assertEq(urn.ink, collateral);  // User's collateral in the vault 2 ether
-        assertEq(urn.art, expectedArt); // User's vault normalized debt 285.71        
+        assertEq(urn.ink, collateral); // User's collateral in the vault 2 ether
+        assertEq(urn.art, expectedArt); // User's vault normalized debt 285.71
         assertEq(vat.ilks(WETH_A).art, expectedArt);
         assertEq(dai.balanceOf(user), borrowed); // User's Dai balance: 300 Dai
         assertEq(dai.totalSupply(), borrowed); // Dai's total supply: 300 Dai
@@ -318,11 +315,11 @@ contract DssProxyIntegrationTest is Test {
         // vat.debt() consists of 300 Dai withdrawn by the user plus 0.0000000000000000003 Dai left in their internal Vat balance from rounding.
         // So it ends up with:
         // 300000000000000000000300000000000000000000000000 / 10^45 = 300.0000000000000000003 Dai
-        assertEq(vat.debt(), expectedArt * duty); 
+        assertEq(vat.debt(), expectedArt * duty);
 
         // Rounding up debt leaves less than one unit of normalized debt in internal Dai.
-        uint256 remainder = expectedArt * duty - borrowed * RAY; // 300000000000000000000000000 / 10^45 = 0.0000000000000000003 Dai = 3 x 10^-19 Dai 
-        
+        uint256 remainder = expectedArt * duty - borrowed * RAY; // 300000000000000000000000000 / 10^45 = 0.0000000000000000003 Dai = 3 x 10^-19 Dai
+
         assertEq(vat.dai(user), remainder); // 0.0000000000000000003 Dai
         assertEq(vat.dai(address(daiJoin)), borrowed * RAY); // 300 ether * RAY
         assertEq(vat.dai(address(proxy)), 0);
@@ -331,7 +328,7 @@ contract DssProxyIntegrationTest is Test {
     // Updates the rate after borrowing.
     // verifies borrowing at an updated rate and verifies interest accrual on an outstanding loan.
     // The user locks 2 ETH and then borrows 100 Dai when the rate is still 1
-    // Then borrows other 300 Dai when the rate is 1.05 
+    // Then borrows other 300 Dai when the rate is 1.05
     function test_DrawAccruesFeesOnExistingDebt() public {
         uint256 collateral = 2 ether;
         uint256 initialBorrowed = 100 ether;
@@ -339,7 +336,7 @@ contract DssProxyIntegrationTest is Test {
         address feeRecipient = makeAddr("vow");
         uint256 initalTimestamp = block.timestamp;
         jug.file("vow", feeRecipient);
-        jug.file(WETH_A, "duty", 105 * RAY / 100); // 5 % per-second stability fee 
+        jug.file(WETH_A, "duty", 105 * RAY / 100); // 5 % per-second stability fee
 
         vm.deal(user, collateral);
         vm.startPrank(user);
@@ -357,7 +354,7 @@ contract DssProxyIntegrationTest is Test {
         // Advance time by 2 seconds
         vm.warp(initalTimestamp + 2);
         assertEq(vat.ilks(WETH_A).rate, RAY); // Stored rate still equals RAY, fees are applied when drip executes
-        
+
         vm.prank(user);
         // The user borrows another 300 DAI
         // proxy.draw calls _getDrawDart which calls drip before claculating additional debt
@@ -386,7 +383,7 @@ contract DssProxyIntegrationTest is Test {
         assertEq(vat.dai(feeRecipient), accruedFees);
         assertEq(vat.debt(), expectedArt * expectedRate); // Total Dai issued = 372.108843537 × 1.1025 ≈ 410.25 Dai
         assertEq(dai.balanceOf(user), initialBorrowed + additionalBorrowed); // User receives 400 Dai
-        assertEq(dai.totalSupply(), initialBorrowed + additionalBorrowed); // DAI's Total supply is 400  
+        assertEq(dai.totalSupply(), initialBorrowed + additionalBorrowed); // DAI's Total supply is 400
         assertEq(vat.dai(user), expectedArt * expectedRate - accruedFees - (initialBorrowed + additionalBorrowed) * RAY);
         assertEq(vat.dai(address(daiJoin)), (initialBorrowed + additionalBorrowed) * RAY);
         assertEq(vat.dai(address(proxy)), 0);

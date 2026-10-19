@@ -55,11 +55,11 @@ contract Vat {
 
     // Data structure for a collateral type
     struct Ilk {
-        uint256 art; // Total Normalized Debt        [wad]
-        uint256 rate; // Accumulated Debt Multiplier [ray] NOTE: Actual vault debt = art × rate
-        uint256 spot; // Price with Safety Margin    [ray]
-        uint256 line; // Debt Ceiling                [rad]
-        uint256 dust; // Urn Debt Floor              [rad]
+        uint256 art; // Total Normalized Debt          [wad]
+        uint256 rate; // Accumulated Debt Multiplier   [ray]     Actual vault debt = art × rate
+        uint256 spot; // Price with Safety Margin      [ray]
+        uint256 line; // Debt Ceiling                  [rad]
+        uint256 dust; // Urn's Minimum Allowe Debt     [rad]
     }
 
     // Accounting record for one Vault
@@ -87,8 +87,8 @@ contract Vat {
     // Stores For each collateral type (ilk) and for each vault (urn) the vault's data (data)
     mapping(bytes32 ilk => mapping(address urn => Urn data)) private s_urns;
 
+    // Stores free collateral: the collateral is already inside the system but is not locked in a vault.
     // s_gem[i][v] is address v’s free collateral balance for collateral type i.
-    // This collateral is already inside the system but is not locked in a vault.
     // Example: s_gem["ETH-A"][user]
     mapping(bytes32 ilk => mapping(address user => uint256 balance)) private s_gem; // [wad]
 
@@ -102,7 +102,7 @@ contract Vat {
 
     uint256 private s_vice; // Total Unbacked Dai  [rad]
 
-    uint256 public s_line; // Total Debt Ceiling   [rad]
+    uint256 public s_Line; // Total Debt Ceiling   [rad]
 
     // Indicates whether the contract is active (1) or shut down (0)
     uint256 private s_live; // Active Flag
@@ -174,7 +174,7 @@ contract Vat {
     // Sets the total debt ceiling (s_line)
     function file(bytes32 what, uint256 data) external auth vatIsAlive {
         if (what == "Line") {
-            s_line = data;
+            s_Line = data;
         } else {
             revert Vat__FileUnrecognizedParam();
         }
@@ -209,9 +209,9 @@ contract Vat {
     /**
      * @dev Modifies a vault's locked collateral and debt.
      * @param i Collateral type
-     * @param u Address of the vault being modified
-     * @param v Address supplying or receiving free collateral
-     * @param w Address receiving generated Dai or supplying Dai for repayment
+     * @param u Address of the vault being modified  -> updates s_urns[i][u]
+     * @param v Address supplying or receiving free collateral  -> updates s_gem[i][v]
+     * @param w Address receiving generated Dai or supplying Dai for repayment -> updates s_dai[w]
      * @param dink Change in locked collateral: positive locks, negative unlocks
      * @param dart Change in normalized debt: positive borrows, negative repays
      */
@@ -246,7 +246,7 @@ contract Vat {
 
         // When borrowing (dart > 0), rejects debt exceeding either the collateral type’s ceiling (ilk.line)
         // or the global ceiling (s_line).
-        if (dart > 0 && (ilk.art * ilk.rate > ilk.line || s_debt > s_line)) {
+        if (dart > 0 && (ilk.art * ilk.rate > ilk.line || s_debt > s_Line)) {
             revert Vat__CeilingExceeded();
         }
 
