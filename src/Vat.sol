@@ -24,10 +24,11 @@
 pragma solidity 0.8.35;
 
 import {VatMath} from "./libraries/VatMath.sol";
+import {Shutdown} from "./Shutdown.sol";
 
 // It is the core Vault engine of dss.
 // It stores and tracks all the associated Dai and collateral balances.
-contract Vat {
+contract Vat is Shutdown {
     ////////////////////////////////
     //            Errors          //
     ////////////////////////////////
@@ -55,7 +56,7 @@ contract Vat {
 
     // Data structure for a collateral type
     struct Ilk {
-        uint256 art;  // Total Normalized Debt         [wad]
+        uint256 art; // Total Normalized Debt         [wad]
         uint256 rate; // Accumulated Debt Multiplier   [ray]     Actual vault debt = art × rate
         uint256 spot; // Price with Safety Margin      [ray]
         uint256 line; // Debt Ceiling                  [rad]
@@ -71,9 +72,6 @@ contract Vat {
     /////////////////////////////////////////
     //            State Variables          //
     /////////////////////////////////////////
-    // Stores the addresses that have administrative permission in the contract. (0 not authorized, 1 authorized)
-    mapping(address user => uint256 auth) private s_wards;
-
     // Records who has permission to act on whose behalf
     // can[owner][operator]
     // - 1: the owner has authorized the operator
@@ -108,31 +106,9 @@ contract Vat {
 
     uint256 public s_Line; // Total Debt Ceiling   [rad]
 
-    // Indicates whether the contract is active (1) or shut down (0)
-    uint256 private s_live; // Active Flag
-    ////////////////////////////////
-    //            Events          //
-    ////////////////////////////////
-
     ///////////////////////////////////
     //            Modifiers          //
     ///////////////////////////////////
-    // Only authorized addresses (1) can execute this function
-    modifier auth() {
-        if (s_wards[msg.sender] != 1) {
-            revert Vat__NotAuthorized();
-        }
-        _;
-    }
-
-    // Check that Vat is not shutdown
-    modifier vatIsAlive() {
-        if (s_live != 1) {
-            revert Vat__NotLive();
-        }
-        _;
-    }
-
     // Check permission. The caller must be source or an address that source authorized through hope
     modifier isCallerAllowed(address source) {
         if (!_wish(source, msg.sender)) {
@@ -140,30 +116,9 @@ contract Vat {
         }
         _;
     }
-
-    ///////////////////////////////////
-    //            Functions          //
-    ///////////////////////////////////
-    constructor() {
-        // Grants administrative permissions to msg.sender
-        s_wards[msg.sender] = 1;
-        // Sets the contract as active.
-        s_live = 1;
-    }
-
     ////////////////////////////////////////////
     //            External Functions          //
     ////////////////////////////////////////////
-    // Grants administrative permissions to the user
-    function rely(address user) external auth vatIsAlive {
-        s_wards[user] = 1;
-    }
-
-    // Revokes administrative permissions to the user
-    function deny(address user) external auth vatIsAlive {
-        s_wards[user] = 0;
-    }
-
     // msg.sender grats authorization to user
     function hope(address user) external {
         s_can[msg.sender][user] = 1;
@@ -185,7 +140,7 @@ contract Vat {
     }
 
     // Sets the total debt ceiling (s_line)
-    function file(bytes32 what, uint256 data) external auth vatIsAlive {
+    function file(bytes32 what, uint256 data) external auth isAlive {
         if (what == "Line") {
             s_Line = data;
         } else {
@@ -194,7 +149,7 @@ contract Vat {
     }
 
     // Sets the parameters spot, line and dust for the collateral type ilk
-    function file(bytes32 ilk, bytes32 what, uint256 data) external auth vatIsAlive {
+    function file(bytes32 ilk, bytes32 what, uint256 data) external auth isAlive {
         if (what == "spot") {
             // Price with safety margin
             s_ilks[ilk].spot = data;
@@ -207,11 +162,6 @@ contract Vat {
         } else {
             revert Vat__FileUnrecognizedParam();
         }
-    }
-
-    // Shut down the vat
-    function cage() external auth {
-        s_live = 0;
     }
 
     // Adds wad to the free collateral balance of user for the ilk collateral type
@@ -235,7 +185,7 @@ contract Vat {
      * @param dink Change in locked collateral: positive locks, negative unlocks
      * @param dart Change in normalized debt: positive borrows, negative repays
      */
-    function frob(bytes32 i, address u, address v, address w, int256 dink, int256 dart) external vatIsAlive {
+    function frob(bytes32 i, address u, address v, address w, int256 dink, int256 dart) external isAlive {
         Urn memory urn = s_urns[i][u];
         Ilk memory ilk = s_ilks[i];
 
@@ -332,7 +282,7 @@ contract Vat {
     // - i: collateral type or ilk
     // - u: the address whose internal Dai balance receives the adjustment
     // - rate: a signed change to the accumulated multiplier, not its new value or an annual interest rate
-    function fold(bytes32 i, address u, int256 rate) external auth vatIsAlive {
+    function fold(bytes32 i, address u, int256 rate) external auth isAlive {
         // Reading the collateral
         Ilk storage ilk = s_ilks[i];
         // Adds the signed increment to the stored multiplier
@@ -368,7 +318,17 @@ contract Vat {
     ////////////////////////////////////////////
     //            Internal Functions          //
     ////////////////////////////////////////////
+    function _revertNotLive() internal pure override {
+        revert Vat__NotLive();
+    }
 
+    // Check that Vat is not shutdown
+    function _beforeAuthChange() internal view override isAlive {}    
+
+    function _revertNotAuthorized() internal pure override {
+        revert Vat__NotAuthorized();
+    }
+    
     // Checks if the user address is authorized by bit.
     // Returns true when bit and user are the same address or
     // the bit address has authorized the user
@@ -391,10 +351,6 @@ contract Vat {
         return s_ilks[ilk];
     }
 
-    function wards(address user) external view returns (uint256) {
-        return s_wards[user];
-    }
-
     function can(address owner, address operator) external view returns (uint256) {
         return s_can[owner][operator];
     }
@@ -413,9 +369,5 @@ contract Vat {
 
     function vice() external view returns (uint256) {
         return s_vice;
-    }
-
-    function live() external view returns (uint256) {
-        return s_live;
     }
 }

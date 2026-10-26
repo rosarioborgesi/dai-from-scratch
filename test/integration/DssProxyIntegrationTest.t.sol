@@ -826,7 +826,7 @@ contract DssProxyIntegrationTest is Test {
         // Vault debt (urn.art)	                            3,000 Dai	        1,500 Dai
         // User’s wallet Dai (dai.balanceOf(user))	        3,000 Dai	        1,500 Dai
         // User’s wallet ETH (user.balance)	                0 ETH	            1 ETH
-    }    
+    }
 
     /////////////////////////////////////////////////////////////////////////////////////////////
     //      wipeAllAndFreeETH - Repay all DAI and withdraw the requested ETH collateral        //
@@ -836,7 +836,7 @@ contract DssProxyIntegrationTest is Test {
     function test_WipeAllAndFreeEth_RepaysAllDebtAndWithdrawsPartialCollateral() public {
         // User locks 2 ETH and borrows 100 Dai
         _withLockedETHAndBorrowedDai(user, 2 ether, 100 ether);
-        
+
         assertEq(vat.urns(WETH_A, user).ink, 2 ether); // User's locked collateral
         assertEq(vat.urns(WETH_A, user).art, 100 ether); // User's normalzied debt
         assertEq(dai.balanceOf(user), 100 ether);
@@ -925,16 +925,16 @@ contract DssProxyIntegrationTest is Test {
         dai.approve(address(proxy), type(uint256).max);
         vm.stopPrank();
     }
-    
+
     // The user repays all 3,000 DAI and withdraws 1 of the 2 WETH locked in their vault.
     function test_WipeAllAndFreeGem_RepaysAllDebtAndWithdrawsPartialCollateral() public {
         uint256 collateral = 2 ether;
         uint256 borrowed = 3_000 ether;
         uint256 withdrawn = 1 ether;
-        uint256 remainingCollateral = collateral - withdrawn;   
+        uint256 remainingCollateral = collateral - withdrawn;
 
         // The user locks 2 WETH and borrows 3_000 Dai
-        _withLockedWETHAndBorrowedDai(user, collateral, borrowed); 
+        _withLockedWETHAndBorrowedDai(user, collateral, borrowed);
 
         assertEq(vat.urns(WETH_A, user).ink, collateral);
         assertEq(vat.urns(WETH_A, user).art, borrowed);
@@ -972,5 +972,4 @@ contract DssProxyIntegrationTest is Test {
         assertEq(vat.dai(address(proxy)), 0);
         assertEq(address(proxy).balance, 0);
     }
-
 }

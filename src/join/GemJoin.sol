@@ -23,6 +23,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.35;
 
+import {Shutdown} from "../Shutdown.sol";
+
 interface GemLike {
     function decimals() external view returns (uint256);
     function transfer(address, uint256) external returns (bool);
@@ -58,7 +60,7 @@ interface VatLike {
 
 */
 
-contract GemJoin {
+contract GemJoin is Shutdown {
     ////////////////////////////////
     //            Errors          //
     ////////////////////////////////
@@ -75,9 +77,6 @@ contract GemJoin {
     /////////////////////////////////////////
     //            State Variables          //
     /////////////////////////////////////////
-    // Stores the addresses that have administrative permission in the contract. (0 not authorized, 1 authorized)
-    mapping(address user => uint256 auth) private s_wards;
-
     // Vat associated with this Join
     VatLike private immutable i_vat;
 
@@ -90,46 +89,17 @@ contract GemJoin {
     // Decimals of the collateral token associated with this Join
     uint256 private immutable i_dec;
 
-    // Indicates whether the contract is active (1) or shut down (0)
-    uint256 private s_live;
-
     ////////////////////////////////
     //            Events          //
     ////////////////////////////////
-    event Rely(address indexed user);
-    event Deny(address indexed user);
     // Amount is in native token units, matching the tokens transferred.
     event Join(address indexed user, uint256 amount);
     event Exit(address indexed user, uint256 amount);
-    event Cage();
-
-    ///////////////////////////////////
-    //            Modifiers          //
-    ///////////////////////////////////
-    // Only authorized addresses (1) can execute this function
-    modifier auth() {
-        if (s_wards[msg.sender] != 1) {
-            revert GemJoin__NotAuthorized();
-        }
-        _;
-    }
-
-    modifier isGemJoinAlive() {
-        // Check that the contract is alive
-        if (s_live != 1) {
-            revert GemJoin__NotLive();
-        }
-        _;
-    }
 
     ///////////////////////////////////
     //            Functions          //
     ///////////////////////////////////
     constructor(address vat, bytes32 ilk, address token) {
-        // Grants administrative permissions to msg.sender
-        s_wards[msg.sender] = 1;
-        // Sets the contract as active.
-        s_live = 1;
         i_vat = VatLike(vat);
         i_ilk = ilk;
         i_gem = GemLike(token);
@@ -143,31 +113,13 @@ contract GemJoin {
     ////////////////////////////////////////////
     //            External Functions          //
     ////////////////////////////////////////////
-    // Grants administrative permissions to the user
-    function rely(address user) external auth {
-        s_wards[user] = 1;
-        emit Rely(user);
-    }
-
-    // Revokes administrative permissions to the user
-    function deny(address user) external auth {
-        s_wards[user] = 0;
-        emit Deny(user);
-    }
-
-    // Freezes this contract
-    function cage() external auth {
-        s_live = 0;
-        emit Cage();
-    }
-
     // Deposits ERC-20 collateral into the GemJoin (adapter)
     // and credits the tokens amount in the user free collateral balance inside the Vat contract.
     // This is implementation is from join-5.sol: https://github.com/sky-ecosystem/dss-gem-joins/blob/master/src/join-5.sol
     // - user: is the address whose free collateral balance in the Vat gets credited.
     // - amount is the amount deposited in the token's native units.
     //      The adapter converts it to 18-decimal units before crediting the Vat.
-    function join(address user, uint256 amount) external isGemJoinAlive {
+    function join(address user, uint256 amount) external isAlive {
         // Token transfers use native decimals; Vat collateral uses 18 decimals.
         uint256 wad = amount * (10 ** (18 - i_dec));
         // Check the normalized amount before casting to int256.
@@ -203,6 +155,17 @@ contract GemJoin {
             revert GemJoin__FailedTransfer();
         }
         emit Exit(user, amount);
+    }
+
+    /////////////////////////////////
+    //      Internal Functions     //
+    /////////////////////////////////
+    function _revertNotLive() internal pure override {
+        revert GemJoin__NotLive();
+    }
+
+    function _revertNotAuthorized() internal pure override {
+        revert GemJoin__NotAuthorized();
     }
 
     //////////////////////////////////////////////////////

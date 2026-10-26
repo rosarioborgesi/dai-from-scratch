@@ -24,6 +24,7 @@
 pragma solidity 0.8.35;
 
 import {JugMath} from "src/libraries/JugMath.sol";
+import {Auth} from "./Auth.sol";
 
 interface VatLike {
     function ilks(bytes32)
@@ -36,7 +37,7 @@ interface VatLike {
 }
 
 // Manages the accumulation of stability fees—the interest charged on vault debt
-contract Jug {
+contract Jug is Auth {
     ////////////////////////////////
     //            Errors          //
     ////////////////////////////////
@@ -62,9 +63,6 @@ contract Jug {
     /////////////////////////////////////////
     //            State Variables          //
     /////////////////////////////////////////
-    // Stores the addresses that have administrative permission in the contract. (0 not authorized, 1 authorized)
-    mapping(address user => uint256 auth) private s_wards;
-
     // Stores an Ilk struct for each collateral type
     mapping(bytes32 ilk => Ilk data) private s_ilks;
 
@@ -75,41 +73,17 @@ contract Jug {
     uint256 private s_base; // Global, per-second stability fee contribution [ray]
 
     uint256 constant ONE = 1e27;
-    ////////////////////////////////
-    //            Events          //
-    ////////////////////////////////
-
-    ///////////////////////////////////
-    //            Modifiers          //
-    ///////////////////////////////////
-    // Only authorized addresses (1) can execute this function
-    modifier auth() {
-        if (s_wards[msg.sender] != 1) {
-            revert Jug__NotAuthorized();
-        }
-        _;
-    }
 
     ///////////////////////////////////
     //            Functions          //
     ///////////////////////////////////
     constructor(address vatAddress) {
-        s_wards[msg.sender] = 1;
         i_vat = VatLike(vatAddress);
     }
 
     ////////////////////////////////////////////
     //            External Functions          //
     ////////////////////////////////////////////
-    // Grants administrative permissions the user
-    function rely(address user) external auth {
-        s_wards[user] = 1;
-    }
-
-    // Revokes administrative permissions to the user
-    function deny(address user) external auth {
-        s_wards[user] = 0;
-    }
 
     // Initializes the collateral data (ilk)
     function init(bytes32 ilk) external auth {
@@ -181,15 +155,18 @@ contract Jug {
         // The next call accrues only the time since this call.
     }
 
+    /////////////////////////////////
+    //      Internal Functions     //
+    /////////////////////////////////
+    function _revertNotAuthorized() internal pure override {
+        revert Jug__NotAuthorized();
+    }
+
     //////////////////////////////////////////////////////
     //      External & Public View & Pure Functions     //
     //////////////////////////////////////////////////////
     function ilks(bytes32 ilk) external view returns (Ilk memory) {
         return s_ilks[ilk];
-    }
-
-    function wards(address user) external view returns (uint256) {
-        return s_wards[user];
     }
 
     function vat() external view returns (VatLike) {

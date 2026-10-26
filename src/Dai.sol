@@ -26,8 +26,9 @@ pragma solidity 0.8.35;
 import {ERC20} from "openzeppelin-contracts/token/ERC20/ERC20.sol";
 import {EIP712} from "openzeppelin-contracts/utils/cryptography/EIP712.sol";
 import {ECDSA} from "openzeppelin-contracts/utils/cryptography/ECDSA.sol";
+import {Auth} from "./Auth.sol";
 
-contract Dai is ERC20, EIP712 {
+contract Dai is ERC20, EIP712, Auth {
     ////////////////////////////////
     //            Errors          //
     ////////////////////////////////
@@ -36,16 +37,6 @@ contract Dai is ERC20, EIP712 {
     error Dai__InvalidPermit();
     error Dai__PermitExpired();
     error Dai__InvalidNonce();
-
-    ///////////////////////////////////////////
-    //            Type Declarations          //
-    ///////////////////////////////////////////
-
-    /////////////////////////////////////////
-    //            State Variables          //
-    /////////////////////////////////////////
-    // Stores the addresses that have administrative permission in the contract. (0 not authorized, 1 authorized)
-    mapping(address user => uint256 auth) private s_wards;
 
     // Per address counter that prevents a permit signature from being reused
     // The signed nonce must match the holder’s current counter, initially 0
@@ -56,31 +47,18 @@ contract Dai is ERC20, EIP712 {
     bytes32 private constant PERMIT_TYPEHASH =
         keccak256("Permit(address holder,address spender,uint256 nonce,uint256 expiry,bool allowed)");
 
-    ////////////////////////////////
-    //            Events          //
-    ////////////////////////////////
-
-    ///////////////////////////////////
-    //            Modifiers          //
-    ///////////////////////////////////
-    // Only authorized addresses (1) can execute this function
-    modifier auth() {
-        if (s_wards[msg.sender] != 1) {
-            revert Dai__NotAuthorized();
-        }
-        _;
-    }
-
     ///////////////////////////////////
     //            Functions          //
     ///////////////////////////////////
-    constructor() ERC20("Dai Stablecoin", "DAI") EIP712("Dai Stablecoin", "1") {
-        s_wards[msg.sender] = 1;
-    }
+    constructor() ERC20("Dai Stablecoin", "DAI") EIP712("Dai Stablecoin", "1") {}
 
     ////////////////////////////////////////////
     //            Internal Functions          //
     ////////////////////////////////////////////
+    function _revertNotAuthorized() internal pure override {
+        revert Dai__NotAuthorized();
+    }
+
     // Returns the Permit hash struct
     function _getPermitHashStruct(address holder, address spender, uint256 nonce, uint256 expiry, bool allowed)
         internal
@@ -102,16 +80,6 @@ contract Dai is ERC20, EIP712 {
     ////////////////////////////////////////////
     //            External Functions          //
     ////////////////////////////////////////////
-    // Grants administrative permissions the user
-    function rely(address user) external auth {
-        s_wards[user] = 1;
-    }
-
-    // Revokes administrative permissions to the user
-    function deny(address user) external auth {
-        s_wards[user] = 0;
-    }
-
     function mint(address user, uint256 wad) external auth {
         _mint(user, wad);
     }
@@ -174,10 +142,6 @@ contract Dai is ERC20, EIP712 {
     //////////////////////////////////////////////////////
     //      External & Public View & Pure Functions     //
     //////////////////////////////////////////////////////
-    function wards(address user) external view returns (uint256) {
-        return s_wards[user];
-    }
-
     function nonces(address user) external view returns (uint256) {
         return s_nonces[user];
     }
