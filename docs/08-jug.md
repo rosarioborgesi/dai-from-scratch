@@ -21,12 +21,12 @@ From the original Math functions:
     }
 ```
 
-I have removed the _add function because we don't need to check against overflow in Solidity 0.8.35, and also updated the function _diff and _rmul into solidity 0.8.35 and moved the code into the library JugMath.sol .
+I have removed the _add function because we don't need to check against overflow in Solidity 0.8.35, and also updated the function _diff and _rmul into solidity 0.8.35 and moved the code into the library Math.sol .
 
 ```solidity
     function diff(uint256 x, uint256 y) internal pure returns (int256) {
         if (x > uint256(type(int256).max) || y > uint256(type(int256).max)) {
-            revert JugMath__Int256OutOfRange();
+            revert Math__Int256OutOfRange();
         }
         return int256(x) - int256(y);
     }
@@ -39,7 +39,7 @@ I have removed the _add function because we don't need to check against overflow
 
 # rpow
 
-The rpow function was kept as the original in assembly but moved to JugMath.sol
+The rpow function was kept as the original in assembly but moved to Math.sol
 
 How _rpow works in Jug original DSS code 
 

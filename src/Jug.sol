@@ -23,7 +23,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.35;
 
-import {JugMath} from "src/libraries/JugMath.sol";
+import {Math} from "src/libraries/Math.sol";
 import {Auth} from "./Auth.sol";
 
 interface VatLike {
@@ -50,7 +50,7 @@ contract Jug is Auth {
     ///////////////////////////////////
     //            Libraries          //
     ///////////////////////////////////
-    using JugMath for uint256;
+    using Math for uint256;
 
     ///////////////////////////////////////////
     //            Type Declarations          //
@@ -144,7 +144,7 @@ contract Jug is Auth {
         // newRate = previousRate × ((base + duty) / 10²⁷)^elapsedSeconds
         // - base: global per-second contribution
         // - duty: collateral-specific per-second contribution
-        rate = JugMath.rpow(s_base + s_ilks[ilk].duty, block.timestamp - s_ilks[ilk].rho, ONE).rmul(prev);
+        rate = Math.rpow(s_base + s_ilks[ilk].duty, block.timestamp - s_ilks[ilk].rho, ONE).rmul(prev);
 
         // Apply the change to the accounting
         i_vat.fold(ilk, s_vow, rate.diff(prev));

@@ -23,7 +23,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.35;
 
-import {VatMath} from "./libraries/VatMath.sol";
+import {Math} from "./libraries/Math.sol";
 import {Shutdown} from "./Shutdown.sol";
 
 // It is the core Vault engine of dss.
@@ -48,7 +48,7 @@ contract Vat is Shutdown {
     ///////////////////////////////////
     //            Libraries          //
     ///////////////////////////////////
-    using VatMath for uint256;
+    using Math for uint256;
 
     ///////////////////////////////////////////
     //            Type Declarations          //
@@ -116,6 +116,7 @@ contract Vat is Shutdown {
         }
         _;
     }
+
     ////////////////////////////////////////////
     //            External Functions          //
     ////////////////////////////////////////////
@@ -323,12 +324,12 @@ contract Vat is Shutdown {
     }
 
     // Check that Vat is not shutdown
-    function _beforeAuthChange() internal view override isAlive {}    
+    function _beforeAuthChange() internal view override isAlive {}
 
     function _revertNotAuthorized() internal pure override {
         revert Vat__NotAuthorized();
     }
-    
+
     // Checks if the user address is authorized by bit.
     // Returns true when bit and user are the same address or
     // the bit address has authorized the user

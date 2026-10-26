@@ -26,11 +26,10 @@ abstract contract Shutdown is Auth {
         s_live = 0;
         emit Cage();
     }
-    
+
     function _revertNotLive() internal pure virtual;
 
     function live() external view returns (uint256) {
         return s_live;
     }
-
 }

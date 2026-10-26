@@ -3,7 +3,7 @@ pragma solidity 0.8.35;
 
 import {Test} from "forge-std/Test.sol";
 import {Vat} from "../../src/Vat.sol";
-import {VatMath} from "../../src/libraries/VatMath.sol";
+import {Math} from "../../src/libraries/Math.sol";
 
 contract VatUnitTest is Test {
     bytes32 constant ILK = "ETH-A";

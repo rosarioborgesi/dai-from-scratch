@@ -41,9 +41,7 @@ abstract contract Auth {
     // Check to be made before changing authorization
     function _beforeAuthChange() internal view virtual {}
 
-
     function wards(address user) external view returns (uint256) {
         return s_wards[user];
     }
-
 }
