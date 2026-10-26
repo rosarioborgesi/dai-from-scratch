@@ -29,11 +29,6 @@ interface GemLike {
     function transferFrom(address, address, uint256) external returns (bool);
 }
 
-interface DSTokenLike {
-    function mint(address, uint256) external;
-    function burn(address, uint256) external;
-}
-
 interface VatLike {
     function slip(bytes32, address, int256) external;
     function move(address, address, uint256) external;
@@ -105,6 +100,7 @@ contract GemJoin {
     event Deny(address indexed user);
     // Amount is in native token units, matching the tokens transferred.
     event Join(address indexed user, uint256 amount);
+    event Exit(address indexed user, uint256 amount);
     event Cage();
 
     ///////////////////////////////////
@@ -189,7 +185,25 @@ contract GemJoin {
         emit Join(user, amount);
     }
 
-    // TODO exit is missing
+    // Withdraws collateral tokens (amount) from the adapter and sends them to user.
+    // This is implementation is from join-5.sol: https://github.com/sky-ecosystem/dss-gem-joins/blob/master/src/join-5.sol
+    function exit(address user, uint256 amount) external {
+        // COnvert amount into 18-decimals
+        uint256 wad = amount * (10 ** (18 - i_dec));
+        // Check that the conversion from uint256 to int256 is safe
+        if (wad > uint256(type(int256).max)) {
+            revert GemJoin__Overflow();
+        }
+        // This subtracts wad from msg.sender’s free collateral for i_ilk.
+        // The recipient can be a different address.
+        i_vat.slip(i_ilk, msg.sender, -int256(wad));
+
+        // The adapter sends amount ERC-20 tokens from its custody to user.
+        if (!i_gem.transfer(user, amount)) {
+            revert GemJoin__FailedTransfer();
+        }
+        emit Exit(user, amount);
+    }
 
     //////////////////////////////////////////////////////
     //      External & Public View & Pure Functions     //
@@ -202,106 +216,3 @@ contract GemJoin {
         return i_gem;
     }
 }
-
-contract DaiJoin {
-    ////////////////////////////////
-    //            Errors          //
-    ////////////////////////////////
-    error DaiJoin__NotAuthorized();
-    error DaiJoin__NotLive();
-
-    ///////////////////////////////////////////
-    //            Type Declarations          //
-    ///////////////////////////////////////////
-
-    /////////////////////////////////////////
-    //            State Variables          //
-    /////////////////////////////////////////
-    // Stores the addresses that have administrative permission in the contract. (0 not authorized, 1 authorized)
-    mapping(address user => uint256 auth) private s_wards;
-
-    // Vat associated with this join
-    VatLike private immutable i_vat;
-
-    // Dai token associated with this join
-    DSTokenLike private immutable i_dai;
-
-    // Indicates whether the contract is active (1) or shut down (0)
-    uint256 private s_live;
-
-    uint256 private constant ONE = 1e27;
-
-    ////////////////////////////////
-    //            Events          //
-    ////////////////////////////////
-    event Rely(address indexed user);
-    event Deny(address indexed user);
-    event Join(address indexed usr, uint256 wad);
-    event Exit(address indexed user, uint256 wad);
-    event Cage();
-
-    ///////////////////////////////////
-    //            Modifiers          //
-    ///////////////////////////////////
-    modifier auth() {
-        if (s_wards[msg.sender] != 1) {
-            revert DaiJoin__NotAuthorized();
-        }
-        _;
-    }
-
-    modifier isDaiJoinAlive() {
-        if (s_live != 1) {
-            revert DaiJoin__NotLive();
-        }
-        _;
-    }
-
-    ///////////////////////////////////
-    //            Functions          //
-    ///////////////////////////////////
-    constructor(address vat, address dai) {
-        // Gives administrative permissions to msg.sender
-        s_wards[msg.sender] = 1;
-        // Sets the contract as active
-        s_live = 1;
-        // Initializes the Vat
-        i_vat = VatLike(vat);
-        // Initializes the Dai token
-        i_dai = DSTokenLike(dai);
-    }
-
-    ////////////////////////////////////////////
-    //            External Functions          //
-    ////////////////////////////////////////////
-    // Grants administrative permissions to the user
-    function rely(address user) external auth {
-        s_wards[user] = 1;
-        emit Rely(user);
-    }
-
-    // Revokes administrative permissions to the user
-    function deny(address user) external auth {
-        s_wards[user] = 0;
-        emit Deny(user);
-    }
-
-    // Converts external Dai into an internal Dai balance
-    function join(address user, uint256 wad) external {
-        // Moves internal Dai from the adapter to user
-        i_vat.move(address(this), user, ONE * wad);
-        // Burns external Dai units from msg.sender
-        i_dai.burn(msg.sender, wad);
-        emit Join(user, wad);
-    }
-
-    // Converts the the caller's internal Dai balance in the Vat into external Dai tokens.
-    function exit(address user, uint256 wad) external isDaiJoinAlive {
-        // Moves internal Dai from the caller's into the adapter
-        i_vat.move(msg.sender, address(this), ONE * wad);
-        // Mints external Dai to the user.
-        i_dai.mint(user, wad);
-        emit Exit(user, wad);
-    }
-}
-

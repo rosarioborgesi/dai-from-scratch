@@ -183,5 +183,35 @@ Stores for each collateral id (ilkId) the balance of each user.
 uint256 public live;
 ```
 Indicates whether the contract is active (1) or shut down (0)
+
+# urn.art vs s_dai
+urn.art tracks normalized debt, what the user actually owes. s_dai[user] tracks internal Dai that the user owns, it's a credit.
+
+Borrowing increases both, repayment decreases both.
    
 
+For these examples, assume rate = RAY (a multiplier of 1), so normalized debt equals actual debt.
+
+| Operation | `s_dai[user]` | `urn.art` | Actual debt |
+|---|---:|---:|---:|
+| Start | 0 | 0 | 0 Dai |
+| Borrow 100 Dai through `frob` | 100 Dai | 100 | 100 Dai |
+| Exit all 100 Dai to the wallet | 0 Dai | 100 | 100 Dai |
+| Join 40 wallet Dai into the Vat | 40 Dai | 100 | 100 Dai |
+| Repay 40 Dai through `frob` | 0 Dai | 60 | 60 Dai |
+
+# urn.ink vs s_gem[ilk][user]
+
+- s_gem[ilk][user]: free (unlocked) collateral credited to the user.
+- urn.ink: collateral locked in that user’s vault
+
+Locking and unlocking only move collateral between Vat accounting balances.
+
+For example:
+
+| Operation | `s_gem[ilk][user]` | `urn.ink` | WETH held by adapter |
+|---|---:|---:|---:|
+| Deposit 3 WETH through `GemJoin.join` | 3 | 0 | 3 |
+| Lock 2 WETH through `frob` | 1 | 2 | 3 |
+| Unlock 1 WETH through `frob` | 2 | 1 | 3 |
+| Withdraw 2 WETH through `GemJoin.exit` | 0 | 1 | 1 |

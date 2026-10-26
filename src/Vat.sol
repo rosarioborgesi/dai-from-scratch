@@ -55,7 +55,7 @@ contract Vat {
 
     // Data structure for a collateral type
     struct Ilk {
-        uint256 art; // Total Normalized Debt          [wad]
+        uint256 art;  // Total Normalized Debt         [wad]
         uint256 rate; // Accumulated Debt Multiplier   [ray]     Actual vault debt = art × rate
         uint256 spot; // Price with Safety Margin      [ray]
         uint256 line; // Debt Ceiling                  [rad]
@@ -64,8 +64,8 @@ contract Vat {
 
     // Accounting record for one Vault
     struct Urn {
-        uint256 ink; // Locked Collateral  [wad]
-        uint256 art; // Normalized Debt    [wad]
+        uint256 ink; // [wad] User's locked Collateral
+        uint256 art; // [wad] Normalized debt that the user owes. Actual amount owed is debt = urn.art × rate / RAY
     }
 
     /////////////////////////////////////////
@@ -92,7 +92,11 @@ contract Vat {
     // Example: s_gem["ETH-A"][user]
     mapping(bytes32 ilk => mapping(address user => uint256 balance)) private s_gem; // [wad]
 
-    // Stores user’s internal Dai balance
+    // user’s internal Dai balance available to spend, not their debt..
+    // You can use that balance to:
+    //  - Repay vault debt through vat.frob.
+    //  - Transfer internal Dai to another address through vat.move.
+    //  - Convert it into wallet Dai through DaiJoin.exit.
     mapping(address account => uint256 balance) private s_dai; // [rad]
 
     // Stores unbacked debt assigned to a user
@@ -121,9 +125,18 @@ contract Vat {
         _;
     }
 
+    // Check that Vat is not shutdown
     modifier vatIsAlive() {
         if (s_live != 1) {
             revert Vat__NotLive();
+        }
+        _;
+    }
+
+    // Check permission. The caller must be source or an address that source authorized through hope
+    modifier isCallerAllowed(address source) {
+        if (!_wish(source, msg.sender)) {
+            revert Vat__NotAllowed();
         }
         _;
     }
@@ -201,9 +214,16 @@ contract Vat {
         s_live = 0;
     }
 
-    // Modify a user's collateral balance.
+    // Adds wad to the free collateral balance of user for the ilk collateral type
     function slip(bytes32 ilk, address user, int256 wad) external auth {
         s_gem[ilk][user] = s_gem[ilk][user].add(wad);
+    }
+
+    // Subtracts wad amount of free collateral from source's balance
+    // Adds wad amount of free collateral to destination's balance
+    function flux(bytes32 ilk, address source, address destination, uint256 wad) external isCallerAllowed(source) {
+        s_gem[ilk][source] -= wad;
+        s_gem[ilk][destination] += wad;
     }
 
     /**
@@ -286,7 +306,7 @@ contract Vat {
         // dink is the change in the locked collateral
 
         // NOTE: Earlier we changed the vault's locked collateral: urn.ink = urn.ink.add(dink);
-        //  Now it applies the opposite change to the free balance
+        //  Now it applies the opposite change to the free collateral balance
         s_gem[i][v] = s_gem[i][v].sub(dink);
 
         // Credit generated Dai or consume Dai for repayment
@@ -335,18 +355,14 @@ contract Vat {
 
     // Transfers internal Dai balance from one address to another within the Vat
     // Parameters:
-    // - src: the address whose balance is debited
-    // - dst: the address whose balance is credited
+    // - source: the address whose balance is debited
+    // - destination: the address whose balance is credited
     // - rad: the amount, using 45 decimal places
-    function move(address src, address dst, uint256 rad) external {
-        // Check permission. The caller must be src or an address that src authorized through hope
-        if (!_wish(src, msg.sender)) {
-            revert Vat__NotAllowed();
-        }
+    function move(address source, address destination, uint256 rad) external isCallerAllowed(source) {
         // Subtract from the source
-        s_dai[src] -= rad;
+        s_dai[source] -= rad;
         // Add to the destination
-        s_dai[dst] += rad;
+        s_dai[destination] += rad;
     }
 
     ////////////////////////////////////////////

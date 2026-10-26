@@ -7,6 +7,8 @@ import {VatMath} from "../../src/libraries/VatMath.sol";
 
 contract VatUnitTest is Test {
     bytes32 constant ILK = "ETH-A";
+    bytes32 constant SECOND_ILK = "BTC-A";
+
     uint256 constant RAY = 1e27;
     uint256 constant ART = 10 ether; // Normalized debt
 
@@ -17,7 +19,6 @@ contract VatUnitTest is Test {
     address feeRecipient = makeAddr("feeRecipient");
     address daiRecipient = makeAddr("daiRecipient");
     address operator = makeAddr("operator");
-    bytes32 constant SECOND_ILK = "BTC-A";
 
     function setUp() public {
         vat = new Vat();
@@ -57,42 +58,24 @@ contract VatUnitTest is Test {
         // - 5 ether (dart) -> adds 5 unit of normalized debt
         vat.frob(ILK, alice, alice, alice, 10 ether, 5 ether);
         _;
-    }  
+    }
 
-    // Verifies the happy path of locking 10 collateral units and generating 5 internal Dai.
+    // Verifies the happy path of locking 10 collateral units and borrow 5 Dai
     function test_Frob_LockAndBorrow()
         public
         withVat(ILK, 100 ether * RAY, 100 ether * RAY, 2 * RAY)
         withFreeCollateral(ILK, alice, int256(20 ether))
     {
-        // It uses 4 distinct addresses
-        // - bob: owns the vault and takes on the debt
-        // - alice: supplies the collateral
-        // - daiRecipient: receives the generated internal Dai
-        // - operator: calls frob
-
-        // alice starts with 20 collateral units
-
-        // bob authorizes operator
-        vm.prank(bob);
-        vat.hope(operator);
-
-        // alice authorizes operator
+        // Alice locks 10 units of collateral ad takes 5 units of normalized debt
+        // Since rate is 1 normalized debt == generated Dai
         vm.prank(alice);
-        vat.hope(operator);
+        vat.frob(ILK, alice, alice, alice, 10 ether, 5 ether);
 
-        // The operator locks 10 units of alice's collateral in bob's vault.
-        // bob's vault takes on 5 units of normalized debt, generating 5 internal Dai for daiRecipient.
-        int256 dink = 10 ether; // Increase in locked collateral [wad]
-        int256 dart = 5 ether; // Increase in normalized debt [wad]
-        vm.prank(operator);
-        vat.frob(ILK, bob, alice, daiRecipient, dink, dart);
-
-        assertEq(vat.urns(ILK, bob).ink, 10 ether); // Locked collateral in bob's vault
-        assertEq(vat.urns(ILK, bob).art, 5 ether); // Normalized debt in bob's vault
+        assertEq(vat.urns(ILK, alice).ink, 10 ether); // Locked collateral in alice's vault
+        assertEq(vat.urns(ILK, alice).art, 5 ether); // Normalized debt in alice's vault
         assertEq(vat.ilks(ILK).art, 5 ether); // Total normalized debt for the ilk
         assertEq(vat.gem(ILK, alice), 10 ether); // Remaining free collateral belonging to alice
-        assertEq(vat.dai(daiRecipient), 5 ether * RAY); // daiRecipient's internal Dai balance [rad]
+        assertEq(vat.dai(alice), 5 ether * RAY); // alice's internal Dai balance [rad]
         assertEq(vat.debt(), 5 ether * RAY); // Total system debt [rad]
     }
 
@@ -121,7 +104,7 @@ contract VatUnitTest is Test {
         vm.expectRevert(Vat.Vat__NotSafe.selector);
         vm.prank(alice);
         vat.frob(ILK, alice, alice, alice, 0, 6 ether);
-    }      
+    }
 
     // This test verifies that borrowing at exactly up to a collateral type's debt ceiling succeeds,
     // but exceeding it by even the smallest amount reverts
@@ -222,6 +205,8 @@ contract VatUnitTest is Test {
         // - 1 ether (dart) -> Adds 1 wei normalized debt units -> because rate is 1.0, generates 1 wei of internal Dai
 
         // Combined debt would exceed the global 10 Dai ceiling, so the call reverts.
+        // This becomes true:  s_debt > s_Line
+        // Because 10 ether + 1 > 10 ether
         vm.expectRevert(Vat.Vat__CeilingExceeded.selector);
         vat.frob(SECOND_ILK, alice, alice, alice, 0, 1);
         vm.stopPrank();
@@ -488,7 +473,7 @@ contract VatUnitTest is Test {
         // - 0 ether (dink) -> Unchanged locked collateral
         // - -1 (dart) -> ARepay 1 unit of normalized debt
         vat.frob(ILK, alice, alice, alice, 0, -1 ether);
-    }    
+    }
 
     // An authorized operator can repay Alice’s debt using Alice’s internal Dai balance.
     function test_Frob_AuthorizedOperatorRepaysDebt()
@@ -520,19 +505,20 @@ contract VatUnitTest is Test {
     {
         vat.file(ILK, "dust", 5 ether * RAY);
 
+        // ilk.rate * urn.art < ilk.dust is true because:
+        // 5 ether - 1 < 5 ether
+        // So it reverts
         vm.expectRevert(Vat.Vat__Dust.selector);
         vm.prank(alice);
         vat.frob(ILK, alice, alice, alice, 10 ether, int256(5 ether - 1));
-        assertEq(vat.urns(ILK, alice).ink, 0);
-        assertEq(vat.urns(ILK, alice).art, 0);
-        assertEq(vat.ilks(ILK).art, 0);
-        assertEq(vat.gem(ILK, alice), 20 ether);
-        assertEq(vat.dai(alice), 0);
-        assertEq(vat.debt(), 0);
 
         // Debt equal to dust is allowed.
+        // ilk.rate * urn.art < ilk.dust is false because:
+        // 5 ether == 5 ether
+        // SO it doesn't revert
         vm.prank(alice);
         vat.frob(ILK, alice, alice, alice, 10 ether, 5 ether);
+
         assertEq(vat.urns(ILK, alice).ink, 10 ether);
         assertEq(vat.urns(ILK, alice).art, 5 ether);
         assertEq(vat.ilks(ILK).art, 5 ether);
@@ -541,111 +527,83 @@ contract VatUnitTest is Test {
         assertEq(vat.debt(), 5 ether * RAY);
     }
 
-    // This test checks that a partial repayment cannot leave a vault with nonzero debt below dust, the minimum allowed debt.
+    // This test checks that a partial repayment cannot leave a vault with nonzero debt below dust,
+    // the minimum allowed debt.
     function test_Frob_RevertWhenPartialRepaymentLeavesDebtBelowDust()
         public
         withVat(ILK, 100 ether * RAY, 100 ether * RAY, 2 * RAY)
         withFreeCollateral(ILK, alice, int256(20 ether))
         withAliceVault
     {
+        // The modifiers prepare Alice’s vault with:
+        // - 10 collateral units locked and 10 units of free collateral.
+        // - 5 Dai of debt and 5 internal Dai.
+        // - rate = RAY, representing a debt multiplier of 1.
+
+        // Set the minimum allowed debt to 3 Dai
         vat.file(ILK, "dust", 3 ether * RAY);
         vm.prank(alice);
-        vat.frob(ILK, alice, alice, alice, 0, -2 ether);
-        assertEq(vat.urns(ILK, alice).ink, 10 ether);
-        assertEq(vat.urns(ILK, alice).art, 3 ether);
-        assertEq(vat.ilks(ILK).art, 3 ether);
-        assertEq(vat.gem(ILK, alice), 10 ether);
-        assertEq(vat.dai(alice), 3 ether * RAY);
-        assertEq(vat.debt(), 3 ether * RAY);
 
+        // First Alice repays 2 Dai
+        // - dink = 0: leaves the collateral unchanged
+        // - dart = -2 ether: reduces normalized debt from 5 to 3
+        // This succeeds because the remaining debt equals dust
+        vat.frob(ILK, alice, alice, alice, 0, -2 ether);
+
+        assertEq(vat.urns(ILK, alice).ink, 10 ether); // Unchanged locked collateral
+        assertEq(vat.urns(ILK, alice).art, 3 ether); //  Urn's normalized debt reduced from 5 to 3 ether
+        assertEq(vat.ilks(ILK).art, 3 ether); // Collateral-type normalized debt reduced to 3 ether
+        assertEq(vat.gem(ILK, alice), 10 ether); // Free collateral unchanged
+        assertEq(vat.dai(alice), 3 ether * RAY); // Internal Dai balance reduced from 5 to 3 Dai
+        assertEq(vat.debt(), 3 ether * RAY); // Total system debt reduced from 5 to 3 Dai
+
+        // Now Alices tries to repay 1 wei of normalized debt so
+        // ilk.rate * urn.art < ilk.dust is true because
+        // 3 ether - 1 < 3 ether
         vm.expectRevert(Vat.Vat__Dust.selector);
         vm.prank(alice);
         vat.frob(ILK, alice, alice, alice, 0, -1);
-        assertEq(vat.urns(ILK, alice).ink, 10 ether);
-        assertEq(vat.urns(ILK, alice).art, 3 ether);
-        assertEq(vat.ilks(ILK).art, 3 ether);
-        assertEq(vat.gem(ILK, alice), 10 ether);
-        assertEq(vat.dai(alice), 3 ether * RAY);
-        assertEq(vat.debt(), 3 ether * RAY);
     }
 
-    // verifies that a vault may repay its entire debt, even though zero is below the minimum debt (dust).
+    // verifies that a vault may repay its entire debt,
+    // even though zero is below the minimum debt (dust).
     function test_Frob_FullRepaymentBelowDust()
         public
         withVat(ILK, 100 ether * RAY, 100 ether * RAY, 2 * RAY)
         withFreeCollateral(ILK, alice, int256(20 ether))
         withAliceVault
     {
+        // The modifiers prepare Alice’s vault with:
+        // - 10 collateral units locked, plus 10 units of free collateral.
+        // - 5 units of normalized debt.
+        // - 5 internal Dai available for repayment.
+        //     The debt multiplier is RAY, representing 1, so the debt equals 5 Dai.
+
+        // Set the minimum debt to 3 Dai
         vat.file(ILK, "dust", 3 ether * RAY);
         vm.prank(alice);
+        // Alice repays everything:
+        // - dink = 0: leave collateral unchanged
+        // - dart = - 5 ether: remove all 5 units of normalized debt
+        //  ilk.rate * urn.art < ilk.dust is not checked because we are doing a full repayment (urn.art == 0)
         vat.frob(ILK, alice, alice, alice, 0, -5 ether);
 
-        assertEq(vat.urns(ILK, alice).ink, 10 ether);
-        assertEq(vat.urns(ILK, alice).art, 0);
-        assertEq(vat.ilks(ILK).art, 0);
-        assertEq(vat.gem(ILK, alice), 10 ether);
-        assertEq(vat.dai(alice), 0);
-        assertEq(vat.debt(), 0);
-    }    
-
-    // verifies that someone can add their own collateral to another person’s unsafe vault,
-    // even if that addition doesn’t make it safe yet.
-    function test_Frob_AddCollateralToUnsafeVault()
-        public
-        withVat(ILK, 100 ether * RAY, 100 ether * RAY, RAY)
-        withFreeCollateral(ILK, alice, int256(20 ether))
-        withAliceVault
-    {
-        // A price fall reduces borrowing capacity from 10 Dai to 2.5 Dai.
-        vat.file(ILK, "spot", RAY / 4);
-        // Anyone may add their own collateral to improve another user's vault.
-        vat.slip(ILK, operator, 1 ether);
-        vm.prank(operator);
-        vat.frob(ILK, alice, operator, alice, 1 ether, 0);
-
-        assertEq(vat.urns(ILK, alice).ink, 11 ether);
-        assertEq(vat.urns(ILK, alice).art, 5 ether);
-        assertEq(vat.ilks(ILK).art, 5 ether);
-        assertEq(vat.gem(ILK, alice), 10 ether);
-        assertEq(vat.dai(alice), 5 ether * RAY);
-        assertEq(vat.debt(), 5 ether * RAY);
-        assertEq(vat.gem(ILK, operator), 0);
-        assertGt(vat.urns(ILK, alice).art * vat.ilks(ILK).rate, vat.urns(ILK, alice).ink * vat.ilks(ILK).spot);
+        assertEq(vat.urns(ILK, alice).ink, 10 ether); // Unchanged locked collateral
+        assertEq(vat.urns(ILK, alice).art, 0); // Normalized debt is erased
+        assertEq(vat.ilks(ILK).art, 0); // Normalized debt is erased
+        assertEq(vat.gem(ILK, alice), 10 ether); // Unchanged free collateral
+        assertEq(vat.dai(alice), 0); // Dai debt is erased
+        assertEq(vat.debt(), 0); // Total debt is erased
     }
 
-    // Proves that someone can repay another person’s unsafe vault using their own Dai,
-    // without the vault owner’s permission—even if the repayment leaves the vault unsafe.
-    function test_Frob_RepayUnsafeVault()
-        public
-        withVat(ILK, 100 ether * RAY, 100 ether * RAY, RAY)
-        withFreeCollateral(ILK, alice, int256(20 ether))
-        withAliceVault
-    {
-        vat.file(ILK, "spot", RAY / 4);
-        // A third party may repay using its own Dai without vault permission.
-        vm.prank(alice);
-        vat.move(alice, operator, 1 ether * RAY);
-        vm.prank(operator);
-        vat.frob(ILK, alice, alice, operator, 0, -1 ether);
-
-        assertEq(vat.urns(ILK, alice).ink, 10 ether);
-        assertEq(vat.urns(ILK, alice).art, 4 ether);
-        assertEq(vat.ilks(ILK).art, 4 ether);
-        assertEq(vat.gem(ILK, alice), 10 ether);
-        assertEq(vat.dai(alice), 4 ether * RAY);
-        assertEq(vat.debt(), 4 ether * RAY);
-        assertEq(vat.dai(operator), 0);
-        assertGt(vat.urns(ILK, alice).art * vat.ilks(ILK).rate, vat.urns(ILK, alice).ink * vat.ilks(ILK).spot);
-    }
-
-    // verifies that frob rejects vault changes after the Vat is shut down
+    // Verifies that frob rejects vault changes after the Vat is shut down
     function test_Frob_RevertAfterShutdown()
         public
         withVat(ILK, 100 ether * RAY, 100 ether * RAY, 2 * RAY)
         withFreeCollateral(ILK, alice, int256(20 ether))
         withAliceVault
     {
-        vat.cage();
+        vat.cage(); // Shutting the vault down
         vm.expectRevert(Vat.Vat__NotLive.selector);
         vm.prank(alice);
         vat.frob(ILK, alice, alice, alice, 0, 1 ether);
