@@ -7,8 +7,10 @@ import {GemJoin} from "../../src/join/GemJoin.sol";
 import {DaiJoin} from "../../src/join/DaiJoin.sol";
 import {Dai} from "../../src/Dai.sol";
 import {Jug} from "../../src/Jug.sol";
+import {Spotter} from "../../src/Spot.sol";
 import {DSSProxy} from "../../src/proxy/DssProxy.sol";
 import {MockWETH} from "../mocks/MockWETH.sol";
+import {MockOracle} from "../mocks/MockOracle.sol";
 
 // Some tests similar to https://github.com/sky-ecosystem/dss-proxy-actions/blob/master/src/DssProxyActions.t.sol
 contract DssProxyIntegrationTest is Test {
@@ -21,6 +23,8 @@ contract DssProxyIntegrationTest is Test {
     Dai internal dai;
     DaiJoin internal daiJoin;
     Jug internal jug;
+    Spotter internal spotter;
+    MockOracle internal oracle;
     DSSProxy internal proxy;
     address internal user;
 
@@ -33,17 +37,26 @@ contract DssProxyIntegrationTest is Test {
         dai = new Dai();
         daiJoin = new DaiJoin(address(vat), address(dai));
         jug = new Jug(address(vat));
+        spotter = new Spotter(address(vat));
+        oracle = new MockOracle();
 
         // Initialize the WETH_A collateral
         vat.init(WETH_A);
         // Gives the adapter permission to credit collateral balances inside the Vat
         vat.rely(address(gemJoin));
         vat.rely(address(jug));
+        vat.rely(address(spotter));
         dai.rely(address(daiJoin));
         jug.init(WETH_A);
 
-        // One WETH supports up to 2,000 Dai after the safety margin.
-        vat.file(WETH_A, "spot", 2_000 * RAY); // Price with Safety Margin
+        // A $3,000 WETH price and 150% collateralization support 2,000 Dai per WETH.
+        oracle.setVal(bytes32(uint256(3_000 ether))); // Oracle price in wad.
+        
+        // Configure WETH_A collateral in the spotter
+        spotter.file(WETH_A, "pip", address(oracle));
+        spotter.file(WETH_A, "mat", 15e26); // Liquidation ratio in ray.
+        spotter.poke(WETH_A);
+
         vat.file(WETH_A, "line", 10_000 ether * RAY); // Debt ceiling
         vat.file("Line", 10_000 ether * RAY); // Total Debt Ceiling
     }
