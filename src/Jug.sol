@@ -72,8 +72,6 @@ contract Jug is Auth {
 
     uint256 private s_base; // Global, per-second stability fee contribution [ray]
 
-    uint256 constant ONE = 1e27;
-
     ///////////////////////////////////
     //            Functions          //
     ///////////////////////////////////
@@ -91,7 +89,7 @@ contract Jug is Auth {
         if (i.duty != 0) {
             revert Jug__IlkAlreadyInit();
         }
-        i.duty = ONE;
+        i.duty = Math.RAY;
         i.rho = block.timestamp;
     }
 
@@ -144,7 +142,7 @@ contract Jug is Auth {
         // newRate = previousRate × ((base + duty) / 10²⁷)^elapsedSeconds
         // - base: global per-second contribution
         // - duty: collateral-specific per-second contribution
-        rate = Math.rpow(s_base + s_ilks[ilk].duty, block.timestamp - s_ilks[ilk].rho, ONE).rmul(prev);
+        rate = Math.rpow(s_base + s_ilks[ilk].duty, block.timestamp - s_ilks[ilk].rho, Math.RAY).rmul(prev);
 
         // Apply the change to the accounting
         i_vat.fold(ilk, s_vow, rate.diff(prev));

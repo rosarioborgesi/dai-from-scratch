@@ -14,3 +14,16 @@ An ilk is a collateral type, identified by a bytes32 value such as "ETH-A".
 | `vat` | Core accounting contract receiving the adjusted price |
 | `wards` | Addresses authorized to administer Spotter |
 | `live` | Whether configuration changes are allowed |
+
+
+## Calculate the safety-adjusted price
+
+How much debt (DAI) does 1 unit of collateral (spot) support?
+
+Ignoring fixed-point scaling, the formula is:
+spot = oracle price / par / mat
+Here, par is the reference currency value of one Dai, and mat is the required collateralization ratio.
+
+For example, with a collateral price of $3,000, par = 1, and mat = 1.5 (150%):
+spot = 3000 / 1 / 1.5 = 2000 Dai per collateral unit
+This means one unit of collateral supports up to 2,000 Dai of debt under the collateralization requirement.

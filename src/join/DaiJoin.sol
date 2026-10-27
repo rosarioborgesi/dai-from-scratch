@@ -75,7 +75,7 @@ contract DaiJoin is Shutdown {
     // Dai token associated with this join
     DSTokenLike private immutable i_dai;
 
-    uint256 private constant ONE = 1e27;
+    uint256 constant RAY = 1e27;
 
     ////////////////////////////////
     //            Events          //
@@ -100,7 +100,7 @@ contract DaiJoin is Shutdown {
     // Converts external Dai into an internal Dai balance
     function join(address user, uint256 wad) external {
         // Moves internal Dai from the adapter to user
-        i_vat.move(address(this), user, ONE * wad);
+        i_vat.move(address(this), user, RAY * wad);
         // Burns external Dai units from msg.sender
         i_dai.burn(msg.sender, wad);
         emit Join(user, wad);
@@ -109,7 +109,7 @@ contract DaiJoin is Shutdown {
     // Converts the the caller's internal Dai balance in the Vat into external Dai tokens.
     function exit(address user, uint256 wad) external isAlive {
         // Moves internal Dai from the caller's into the adapter
-        i_vat.move(msg.sender, address(this), ONE * wad);
+        i_vat.move(msg.sender, address(this), RAY * wad);
         // Mints external Dai to the user.
         i_dai.mint(user, wad);
         emit Exit(user, wad);

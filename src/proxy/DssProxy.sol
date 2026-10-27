@@ -23,6 +23,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.35;
 
+import {Math} from "../libraries/Math.sol";
+
 interface GemLike {
     function approve(address, uint256) external;
     function transfer(address, uint256) external;
@@ -65,7 +67,8 @@ interface JugLike {
 // This is a convienience helper that user can call to perform operation like locking collateral, borrowing Dai and so on...
 // without having to call the function needed on the different contract.
 // Inspired by https://github.com/sky-ecosystem/dss-proxy-actions/blob/master/src/DssProxyActions.sol
-contract DSSProxy {
+contract DSSProxy {  
+
     ////////////////////////////////
     //            Errors          //
     ////////////////////////////////
@@ -163,7 +166,7 @@ contract DSSProxy {
         // Locks that collateral in the Vault.
         // - msg.sender: identifies the user’s vault.
         // - address(this): holds the newly deposited free collateral.
-        i_vat.frob(ilk, msg.sender, address(this), address(this), _toInt(msg.value), 0);
+        i_vat.frob(ilk, msg.sender, address(this), address(this), Math.toInt(msg.value), 0);
     }
 
     // Deposits (or locks) collateral tokens into an existing vault, without borrowing any DAI.
@@ -176,7 +179,7 @@ contract DSSProxy {
         // Takes token amount from user's wallet and joins into the vat
         gemJoin_join(gemJoin, address(this), amount, transferFrom);
         // Locks token amount into the vault
-        int256 dink = _toInt(_convertTo18(gemJoin, amount));
+        int256 dink = Math.toInt(_convertTo18(gemJoin, amount));
         i_vat.frob(ilk, msg.sender, address(this), address(this), dink, 0);
     }
 
@@ -188,7 +191,7 @@ contract DSSProxy {
         // This reduces the caller’s locked collateral by wad and
         // credits the proxy’s free collateral balance.
         // The final 0 leaves the vault’s debt unchanged.
-        i_vat.frob(ilk, msg.sender, address(this), msg.sender, -_toInt(wad), 0);
+        i_vat.frob(ilk, msg.sender, address(this), msg.sender, -Math.toInt(wad), 0);
 
         // 2. Withdraw WETH from the adapter
         // The adapter debits the proxy’s free collateral balance in the Vat and
@@ -223,7 +226,7 @@ contract DSSProxy {
         // - msg.sender (w): Identifies the internal Dai account; unused here because debt does not change
         // - -wad (dink): reduces the vault's locked collateral
         // - 0 (dart): Leaves normalized debt unchanged
-        i_vat.frob(ilk, msg.sender, address(this), msg.sender, -_toInt(wad), 0);
+        i_vat.frob(ilk, msg.sender, address(this), msg.sender, -Math.toInt(wad), 0);
 
         // At this point:
         // - Caller's locked collateral = -wad
@@ -276,7 +279,7 @@ contract DSSProxy {
         i_vat.frob(ilk, msg.sender, msg.sender, msg.sender, 0, dart);
 
         // 2. Move internal Dai to the proxy.
-        i_vat.move(msg.sender, address(this), _toRad(wad));
+        i_vat.move(msg.sender, address(this), Math.toRad(wad));
 
         // 3. Allows adapter to access to proxy's DAI balance in the vat
         if (i_vat.can(address(this), daiJoin) == 0) {
@@ -311,10 +314,10 @@ contract DSSProxy {
         //  - msg.sender (w): Account receiving newly generated internal Dai
         //  - msg.value (dink): Amount of collateral to lock
         //  - dart: normalized debt to add
-        i_vat.frob(ilk, msg.sender, msg.sender, msg.sender, _toInt(msg.value), dart);
+        i_vat.frob(ilk, msg.sender, msg.sender, msg.sender, Math.toInt(msg.value), dart);
 
         // 4. Move the requested internal DAI to the proxy
-        i_vat.move(msg.sender, address(this), _toRad(wadDai));
+        i_vat.move(msg.sender, address(this), Math.toRad(wadDai));
 
         // 5. Authorize the DAI adapter
         // Allows daiJoin to spend the proxy’s internal DAI.
@@ -348,12 +351,12 @@ contract DSSProxy {
         gemJoin_join(gemJoin, msg.sender, amountCollateral, transferFrom);
 
         // 2. Lock the deposited collateral and generate any additional debt needed to receive wadDai.
-        int256 dink = _toInt(_convertTo18(gemJoin, amountCollateral));
+        int256 dink = Math.toInt(_convertTo18(gemJoin, amountCollateral));
         int256 dart = _getDrawDart(ilk, jug, msg.sender, wadDai);
         i_vat.frob(ilk, msg.sender, msg.sender, msg.sender, dink, dart);
 
         // 3. Move internal Dai from msg.sender to the proxy.
-        i_vat.move(msg.sender, address(this), _toRad(wadDai));
+        i_vat.move(msg.sender, address(this), Math.toRad(wadDai));
 
         // 4. Allows adapter to access to proxy's DAI balance in the vat
         if (i_vat.can(address(this), daiJoin) == 0) {
@@ -402,8 +405,8 @@ contract DSSProxy {
         // msg.sender (v): collateral account; no change here
         // msg.sender (w): internal DAI account funding repayment
         // 0 (dink): collateral stays unchanged
-        // -_toInt(art) (dart): remove all normalized debt
-        i_vat.frob(ilk, msg.sender, msg.sender, msg.sender, 0, -_toInt(art));
+        // -Math.toInt(art) (dart): remove all normalized debt
+        i_vat.frob(ilk, msg.sender, msg.sender, msg.sender, 0, -Math.toInt(art));
     }
 
     /**
@@ -432,7 +435,7 @@ contract DSSProxy {
         // - msg.sender (w)	Spend the caller’s internal DAI for repayment
         // - -wadCollateral (dink)	Decrease locked collateral
         // - dart	Decrease normalized debt
-        i_vat.frob(ilk, msg.sender, address(this), msg.sender, -_toInt(wadCollateral), dart);
+        i_vat.frob(ilk, msg.sender, address(this), msg.sender, -Math.toInt(wadCollateral), dart);
 
         // 4. Withdraw WETH and unwrap it
         // exit consumes the proxy’s free collateral balance in the Vat and sends WETH from the adapter to the proxy.
@@ -464,7 +467,7 @@ contract DSSProxy {
         daiJoin_join(daiJoin, msg.sender, wadDai);
 
         // Repay all normalized debt and credit unlocked collateral to the proxy.
-        i_vat.frob(ilk, msg.sender, address(this), msg.sender, -_toInt(wadCollateral), -_toInt(art));
+        i_vat.frob(ilk, msg.sender, address(this), msg.sender, -Math.toInt(wadCollateral), -Math.toInt(art));
 
         // Withdraw WETH, unwrap it, and send native ETH to the caller.
         GemJoinLike(ethJoin).exit(address(this), wadCollateral);
@@ -493,7 +496,7 @@ contract DSSProxy {
         int256 dart = _getWipeDart(ilk, i_vat.dai(msg.sender), msg.sender);
 
         // Repay the caller's debt and credit unlocked collateral to the proxy.
-        i_vat.frob(ilk, msg.sender, address(this), msg.sender, -_toInt(wadCollateral), dart);
+        i_vat.frob(ilk, msg.sender, address(this), msg.sender, -Math.toInt(wadCollateral), dart);
 
         // Exit using the token's native decimals and send tokens to the caller.
         GemJoinLike(gemJoin).exit(msg.sender, amountCollateral);
@@ -517,7 +520,7 @@ contract DSSProxy {
         uint256 wadCollateral = _convertTo18(gemJoin, amountCollateral);
 
         // Repay all normalized debt and credit unlocked collateral to the proxy.
-        i_vat.frob(ilk, msg.sender, address(this), msg.sender, -_toInt(wadCollateral), -_toInt(art));
+        i_vat.frob(ilk, msg.sender, address(this), msg.sender, -Math.toInt(wadCollateral), -Math.toInt(art));
 
         // Exit using the token's native decimals and send tokens to the caller.
         GemJoinLike(gemJoin).exit(msg.sender, amountCollateral);
@@ -541,7 +544,7 @@ contract DSSProxy {
         if (dai < wad * RAY) {
             // Calculates how much additional normalized debt (dart) is needed to cover the requested DAI withdrawal
             // additional normalized debt (dart) = (requested DAI - existing DAI) / debt multiplier
-            dart = _toInt((wad * RAY - dai) / rate);
+            dart = Math.toInt((wad * RAY - dai) / rate);
 
             // Add one smallest unit of normalized debt for lack of precision.
             // The purpose is to compensate for the previous division rounding down
@@ -564,12 +567,12 @@ contract DSSProxy {
         // dai = art * rate -> normalized debt = Dai / rate -> art = Dai / rate
 
         // Let's calculate how much normalized debt the supplied Dai can cover:
-        dart = _toInt(dai / rate);
+        dart = Math.toInt(dai / rate);
 
         // Caps the reduction at the Vault's outstanding debt,
         // then it makes it negative because frob applies
         // new art = old art + dart
-        dart = uint256(dart) <= art ? -dart : -_toInt(art);
+        dart = uint256(dart) <= art ? -dart : -Math.toInt(art);
     }
 
     // Calculates how much additional ERC-20 DAI is needed to repay a vault’s entire debt,
@@ -607,18 +610,6 @@ contract DSSProxy {
             revert DSSProxy__UnsupportedDecimals();
         }
         return amount * (10 ** (18 - decimals));
-    }
-
-    // Converts uint256 into int256 with an overflow check.
-    function _toInt(uint256 amount) internal pure returns (int256) {
-        if (amount > uint256(type(int256).max)) {
-            revert DSSProxy__Overflow();
-        }
-        return int256(amount);
-    }
-
-    function _toRad(uint256 wad) internal pure returns (uint256 rad) {
-        rad = wad * RAY;
     }
 
     //////////////////////////////////////////////////////

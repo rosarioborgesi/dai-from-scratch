@@ -7,7 +7,7 @@ library Math {
     error Math__Underflow();
     error Math__Int256OutOfRange();
 
-    uint256 private constant RAY = 1e27;
+    uint256 public constant RAY = 1e27;
 
     // Signed/unsigned arithmetic
 
@@ -186,5 +186,27 @@ library Math {
                 }
             }
         }
+    }
+
+    function rdiv(uint256 x, uint256 y) internal pure returns (uint256) {
+        return (x * RAY) / y;
+    }
+
+    // Converts uint256 into int256 with an overflow check.
+    function toInt(uint256 amount) internal pure returns (int256) {
+        if (amount > uint256(type(int256).max)) {
+            revert Math__Overflow();
+        }
+        return int256(amount);
+    }
+
+    // Converts wad [10^18] to rad [10^45]
+    function toRad(uint256 wad) internal pure returns (uint256) {
+        return wad * RAY;
+    }
+
+    // Converts wad [10^18] to ray [10^27]
+    function toRay(uint256 wad) internal pure returns (uint256) {
+        return wad * 1e9;
     }
 }
