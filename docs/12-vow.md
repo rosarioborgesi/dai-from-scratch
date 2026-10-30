@@ -1,26 +1,10 @@
 # Vow.sol
 
-The Vow contract represents the Sky Protocol’s balance sheet. In particular, the Vow acts as the recipient of both the system surplus and system debt.
+[Vow.sol](../src/Vow.sol) manages MakerDAO’s system debt and surplus. It uses accumulated Dai surplus to cancel debt and starts auctions when the system has excess surplus or a remaining deficit. Its Dai and debt balances are held in the [Vat](../src/Vat.sol), the core accounting contract.
 
-Vow is MakerDAO’s system debt and surplus settlement module. It uses accumulated Dai surplus to cancel system debt, and starts auctions when there is excess surplus or a remaining deficit.
+Debt can wait in a queue before becoming available for settlement or a debt auction. Debt already assigned to an auction is tracked separately so it cannot be used again for settlement or another auction.
 
-It operates on balances inside the Vat, Maker’s core accounting contract.
-
-| Value | Meaning |
-|---|---|
-| `vat.sin(address(vow))` | Total system debt assigned to the Vow |
-| `vow.sin[timestamp]` | Debt recorded in a particular timestamp’s queue entry |
-| `vow.Sin` | Total debt still in that queue |
-| `vow.Ash` | Debt already allocated to debt auctions |
-
-
-
-
-The debt available for settlement or a new debt auction is:
-
-```text
-available debt = vat.sin(address(vow)) - vow.Sin() - vow.Ash()
-```
+Debt auctions raise Dai to cover a deficit in exchange for governance tokens. Surplus auctions sell excess Dai while leaving enough to cover outstanding debt and a configured surplus buffer. Vow starts these auctions; the separate auction contracts handle bidding and completion.
 
 | Function | Purpose |
 |---|---|
@@ -30,6 +14,3 @@ available debt = vat.sin(address(vow)) - vow.Sin() - vow.Ash()
 | [`flop()`](/home/rosario/linux_workspaces/dai/dai-from-scratch/src/Vow.sol:139) | Starts a debt auction through `flopper`, offering an initial `dump` governance-token lot for `sump` Dai. Requires enough available debt and a zero Dai balance. Increases `Ash` to reserve the auction’s debt. |
 | [`kiss(rad)`](/home/rosario/linux_workspaces/dai/dai-from-scratch/src/Vow.sol:131) | Uses received Dai to cancel debt already assigned to auctions, reducing `Ash` by the same amount. |
 | [`flap()`](/home/rosario/linux_workspaces/dai/dai-from-scratch/src/Vow.sol:147) | Starts a surplus auction through `flapper`, selling `bump` internal Dai. Requires enough Dai to cover all outstanding debt, the auction lot, and the retained `hump` buffer. Available debt must also be zero. |
-
-
-

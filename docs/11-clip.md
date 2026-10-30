@@ -1,4 +1,4 @@
-# Clipper auctions
+# Clipper.sol
 
 [Clip.sol](/home/rosario/linux_workspaces/dai/dai-from-scratch/src/Clip.sol) defines Clipper, which sells liquidated collateral through Dutch auctions: the price starts high and decreases over time, and buyers purchase at the current price.
 

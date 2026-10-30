@@ -14,8 +14,6 @@ import {DaiJoin} from "../../src/join/DaiJoin.sol";
 import {MockWETH} from "../mocks/MockWETH.sol";
 import {MockOracle} from "../mocks/MockOracle.sol";
 
-/// @notice Run with `forge test --match-contract LiquidationIntegrationTest -vv`.
-///         Use -vvvv instead to see the calls between the protocol contracts.
 contract LiquidationIntegrationTest is Test {
     bytes32 internal constant WETH_A = "WETH-A";
     uint256 internal constant RAY = 1e27;

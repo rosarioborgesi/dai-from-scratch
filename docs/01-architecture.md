@@ -60,6 +60,12 @@ flowchart TB
 
 Governance configures parameters and permissions across these modules. External callers submit transactions to update prices, accrue fees, trigger liquidations, and advance auctions. Contracts do not wake up automatically as time passes.
 
+### Shared and per-ilk components
+
+Vat, Spotter, Jug, and Dog are shared across collateral types, with separate records for each ilk. Vow, Pot, Dai, DaiJoin, and End also serve the system as a whole. Each GemJoin binds one ilk to an external token, and each Clipper serves one ilk. Price calculators can be shared by multiple Clippers.
+
+Adding a collateral type therefore combines configuration in the shared modules with an adapter and a collateral auction contract. Governance must initialize its accounting and fees, configure its feed and risk parameters, and grant the required permissions before borrowing and liquidation can work.
+
 ### Contract map
 
 Filenames below refer to the reference DSS repository; they do not prescribe filenames for the rewrite.
@@ -111,6 +117,20 @@ Its main records are:
 A core vault, called an **urn**, is identified by `(ilk, address)`. A separate manager can expose numbered vaults or multiple vaults for a single end user, but that interface is outside this core.
 
 Free collateral and locked collateral are different balances. Depositing tokens into an adapter credits free collateral. Locking that collateral in a vault is another accounting operation.
+
+### Accounting invariants
+
+The ledger keeps Dai balances and their corresponding debt in balance:
+
+```text
+debt = sum(dai[address])
+vice = sum(sin[address])
+debt = sum(ilks[ilk].Art × ilks[ilk].rate) + vice
+```
+
+The sums cover all addresses or ilks, and every term is in rad. These are accounting identities, not guarantees about collateral market value. ERC-20 Dai supply is not added to internal Dai balances: DaiJoin holds the internal balance corresponding to the tokens it issues.
+
+Borrowing increases vault debt and internal Dai together. Liquidation moves debt from the vault-debt term into `vice` without changing total issued Dai. `suck` increases internal Dai and system debt together; `heal` cancels equal balances of both and reduces `debt` and `vice`.
 
 ### Units: wad, ray, and rad
 
@@ -288,6 +308,8 @@ The price calculators in `abaci.sol` provide linear, stairstep exponential, or c
 
 Clipper can pay initiation/reset incentives using `Vat.suck`. Its purchase flow supports a callback before payment is collected, which enables more complex keeper transactions and makes reentrancy protection important.
 
+Clipper also has a governance-controlled circuit breaker, `stopped`. Level 0 permits normal operation; level 1 blocks new auctions; level 2 also blocks resets; level 3 also blocks purchases. Governance can change the level without initiating global shutdown.
+
 ### Older liquidation: Cat and Flipper
 
 `Cat.bite` initiates the older liquidation flow. Flipper uses competitive bidding: bidders first increase the Dai bid, then can compete by accepting less collateral once the target is reached.
@@ -334,6 +356,8 @@ Important stages include:
 
 Users receive internal collateral and use its adapter to withdraw actual tokens. ERC-20 Dai must first enter internal accounting for this redemption flow.
 
+Packed Dai grants an entitlement to a fixed basket of collateral, with each ilk's share determined by its redemption rate. `cash(ilk, wad)` tracks claims separately for each ilk: claiming against 100 packed Dai for one ilk leaves the entitlement against those same 100 Dai available for other ilks. It does not let the holder choose any one collateral for the entire basket's value. Packed Dai cannot be unpacked or transferred, and redemption rates reflect settlement accounting, including collateral shortfalls.
+
 `Cure` aggregates debt adjustments reported by registered external sources. End subtracts the reported adjustment when establishing settlement debt. Cure coordinates loading those values and a waiting period; it does not restore ordinary vault solvency.
 
 The `live` flag does not block every function uniformly. Some operations intentionally remain available for settlement. Shutdown behavior must be understood module by module.
@@ -349,6 +373,12 @@ The `live` flag does not block every function uniformly. Some operations intenti
 ERC-20 allowances are a third, separate mechanism. Approving a token transfer does not grant Vat permission.
 
 Adapters need authority to credit collateral; Jug needs authority to change rates; liquidation and shutdown modules need confiscation authority; DaiJoin needs token minting authority. Correct deployment wiring is part of the architecture, not merely setup boilerplate.
+
+Vat's ward authority is broad: it does not restrict a ward to a particular ilk or privileged function. An adapter's restriction to one collateral type comes from its own code, not from Vat enforcing that boundary. The ledger therefore trusts authorized modules to preserve the connection between its accounting and external assets.
+
+### Replacing modules
+
+The architecture supports replacing peripheral modules while retaining the shared ledger and vault records. Governance changes configured contract addresses and grants or revokes authority and accounting delegation as required. For example, Vow can replace its auction contracts, and a Clipper can change its price calculator. These are explicit changes to contract connections; outstanding auctions, token custody, and other state in a replaced module still require a transition plan.
 
 ### What this repository does not fully supply
 

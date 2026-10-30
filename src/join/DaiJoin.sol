@@ -35,30 +35,6 @@ interface VatLike {
     function move(address, address, uint256) external;
 }
 
-/*
-    Here we provide *adapters* to connect the Vat to arbitrary external
-    token implementations, creating a bounded context for the Vat. The
-    adapters here are provided as working examples:
-
-      - `GemJoin`: For well behaved ERC20 tokens, with simple transfer
-                   semantics.
-
-      - `ETHJoin`: For native Ether.
-
-      - `DaiJoin`: For connecting internal Dai balances to an external
-                   `DSToken` implementation.
-
-    In practice, adapter implementations will be varied and specific to
-    individual collateral types, accounting for different transfer
-    semantics and token standards.
-
-    Adapters need to implement two basic methods:
-
-      - `join`: enter collateral into the system
-      - `exit`: remove collateral from the system
-
-*/
-
 contract DaiJoin is Shutdown {
     ////////////////////////////////
     //            Errors          //

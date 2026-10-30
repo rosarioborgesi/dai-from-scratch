@@ -48,9 +48,11 @@ Inside the delegated action, `address(this)` is the proxy and `msg.sender` remai
 
 This lets shared code operate through each user's own contract identity. `execute` requires authorization, normally from the proxy owner. If an action reverts, the transaction's changes are rolled back. See [DSProxy.execute](https://github.com/dapphub/ds-proxy/blob/master/src/proxy.sol).
 
+For manager-controlled vault operations, the proxy typically owns the vault in `DssCdpManager`, while the user owns the proxy.
+
 ## 4. How this relates to our project
 
-Our [test proxy](../test/proxy/DssProxy.sol) puts `lockGem` directly in the helper contract. It calls `GemJoin` and `Vat` without a registry, shared action contract, or `delegatecall`.
+Our [proxy helper](../src/proxy/DssProxy.sol) puts `lockGem` directly in the helper contract. It calls `GemJoin` and `Vat` without a registry, shared action contract, or `delegatecall`.
 
 The reference integration also uses `DssCdpManager` to look up a vault by its numeric ID (`cdp`). Our helper instead accepts the collateral type and vault address directly. The underlying [join-and-lock flow](03-deposit.md) is the same idea.
 
