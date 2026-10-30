@@ -9,6 +9,8 @@ library Math {
 
     uint256 public constant RAY = 1e27;
 
+    uint256 public constant WAD = 10 ** 18;
+
     // Signed/unsigned arithmetic
 
     /**
@@ -190,6 +192,10 @@ library Math {
 
     function rdiv(uint256 x, uint256 y) internal pure returns (uint256) {
         return (x * RAY) / y;
+    }
+
+    function min(uint256 x, uint256 y) internal pure returns (uint256 z) {
+        z = x <= y ? x : y;
     }
 
     // Converts uint256 into int256 with an overflow check.

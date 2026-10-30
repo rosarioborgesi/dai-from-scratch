@@ -210,17 +210,4 @@ The three addresses need not be identical. The examples use the same user for cl
 
 The adapters handle the token boundary. **frob handles the vault's collateral and debt changes.**
 
-## 10. Permission checklist for integrations
-
-| Permission | Set on | Purpose |
-| --- | --- | --- |
-| `approve(gemJoin, amount)` | Collateral ERC-20 | Lets the adapter transfer collateral tokens |
-| `approve(daiJoin, amount)` | Dai ERC-20 | Lets DaiJoin burn tokens when entering internal accounting |
-| `hope(daiJoin)` | Vat | Lets DaiJoin move internal Dai when exiting to tokens |
-| `hope(pot)` | Vat | Lets Pot collect internal Dai for savings |
-| `hope(clipper)` | Vat | Lets Clipper collect internal Dai for auction purchases |
-
-ERC-20 allowances and Vat delegation are distinct. Vat's `hope` is an address-level accounting delegation, not an amount-limited token approval; `nope` revokes it. Direct calls modifying the user's own vault do not require granting that user permission to itself.
-
-Administrative `rely`/`deny` permissions are separate again. A deployed system must already authorize and configure its modules; ordinary user operations do not grant those administrative powers.
 

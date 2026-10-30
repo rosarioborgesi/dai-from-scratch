@@ -67,8 +67,7 @@ interface JugLike {
 // This is a convienience helper that user can call to perform operation like locking collateral, borrowing Dai and so on...
 // without having to call the function needed on the different contract.
 // Inspired by https://github.com/sky-ecosystem/dss-proxy-actions/blob/master/src/DssProxyActions.sol
-contract DSSProxy {  
-
+contract DSSProxy {
     ////////////////////////////////
     //            Errors          //
     ////////////////////////////////

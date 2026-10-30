@@ -73,7 +73,7 @@ contract VatUnitTest is Test {
 
         assertEq(vat.urns(ILK, alice).ink, 10 ether); // Locked collateral in alice's vault
         assertEq(vat.urns(ILK, alice).art, 5 ether); // Normalized debt in alice's vault
-        assertEq(vat.ilks(ILK).art, 5 ether); // Total normalized debt for the ilk
+        assertEq(vat.ilks(ILK).Art, 5 ether); // Total normalized debt for the ilk
         assertEq(vat.gem(ILK, alice), 10 ether); // Remaining free collateral belonging to alice
         assertEq(vat.dai(alice), 5 ether * RAY); // alice's internal Dai balance [rad]
         assertEq(vat.debt(), 5 ether * RAY); // Total system debt [rad]
@@ -320,7 +320,7 @@ contract VatUnitTest is Test {
 
         assertEq(vat.urns(ILK, alice).ink, 10 ether);
         assertEq(vat.urns(ILK, alice).art, 3 ether); // 5 - 2
-        assertEq(vat.ilks(ILK).art, 3 ether); // 5 - 2
+        assertEq(vat.ilks(ILK).Art, 3 ether); // 5 - 2
         assertEq(vat.gem(ILK, alice), 10 ether); // 20 - 10
         assertEq(vat.dai(alice), 3 ether * RAY); // actual debt = normalized debt because rate = 1.0
         assertEq(vat.debt(), 3 ether * RAY); // actual debt = normalized debt because rate = 1.0
@@ -352,7 +352,7 @@ contract VatUnitTest is Test {
         //               = 5 x 1.1 = 5.5 Dai
         assertEq(vat.urns(ILK, alice).ink, 10 ether);
         assertEq(vat.urns(ILK, alice).art, 5 ether);
-        assertEq(vat.ilks(ILK).art, 5 ether);
+        assertEq(vat.ilks(ILK).Art, 5 ether);
         assertEq(vat.gem(ILK, alice), 10 ether);
         assertEq(vat.dai(alice), 55 ether * RAY / 10); // 5.5 DAI
         assertEq(vat.debt(), 55 ether * RAY / 10); // 5.5 DAI
@@ -408,7 +408,7 @@ contract VatUnitTest is Test {
         assertEq(vat.can(alice, operator), 1);
         assertEq(vat.urns(ILK, alice).ink, 10 ether);
         assertEq(vat.urns(ILK, alice).art, 6 ether);
-        assertEq(vat.ilks(ILK).art, 6 ether);
+        assertEq(vat.ilks(ILK).Art, 6 ether);
         assertEq(vat.debt(), 6 ether * RAY);
         assertEq(vat.gem(ILK, alice), 10 ether);
         assertEq(vat.dai(alice), 5 ether * RAY);
@@ -490,7 +490,7 @@ contract VatUnitTest is Test {
 
         assertEq(vat.urns(ILK, alice).ink, 10 ether);
         assertEq(vat.urns(ILK, alice).art, 3 ether);
-        assertEq(vat.ilks(ILK).art, 3 ether);
+        assertEq(vat.ilks(ILK).Art, 3 ether);
         assertEq(vat.gem(ILK, alice), 10 ether);
         assertEq(vat.dai(alice), 3 ether * RAY);
         assertEq(vat.debt(), 3 ether * RAY);
@@ -521,7 +521,7 @@ contract VatUnitTest is Test {
 
         assertEq(vat.urns(ILK, alice).ink, 10 ether);
         assertEq(vat.urns(ILK, alice).art, 5 ether);
-        assertEq(vat.ilks(ILK).art, 5 ether);
+        assertEq(vat.ilks(ILK).Art, 5 ether);
         assertEq(vat.gem(ILK, alice), 10 ether);
         assertEq(vat.dai(alice), 5 ether * RAY);
         assertEq(vat.debt(), 5 ether * RAY);
@@ -552,7 +552,7 @@ contract VatUnitTest is Test {
 
         assertEq(vat.urns(ILK, alice).ink, 10 ether); // Unchanged locked collateral
         assertEq(vat.urns(ILK, alice).art, 3 ether); //  Urn's normalized debt reduced from 5 to 3 ether
-        assertEq(vat.ilks(ILK).art, 3 ether); // Collateral-type normalized debt reduced to 3 ether
+        assertEq(vat.ilks(ILK).Art, 3 ether); // Collateral-type normalized debt reduced to 3 ether
         assertEq(vat.gem(ILK, alice), 10 ether); // Free collateral unchanged
         assertEq(vat.dai(alice), 3 ether * RAY); // Internal Dai balance reduced from 5 to 3 Dai
         assertEq(vat.debt(), 3 ether * RAY); // Total system debt reduced from 5 to 3 Dai
@@ -590,7 +590,7 @@ contract VatUnitTest is Test {
 
         assertEq(vat.urns(ILK, alice).ink, 10 ether); // Unchanged locked collateral
         assertEq(vat.urns(ILK, alice).art, 0); // Normalized debt is erased
-        assertEq(vat.ilks(ILK).art, 0); // Normalized debt is erased
+        assertEq(vat.ilks(ILK).Art, 0); // Normalized debt is erased
         assertEq(vat.gem(ILK, alice), 10 ether); // Unchanged free collateral
         assertEq(vat.dai(alice), 0); // Dai debt is erased
         assertEq(vat.debt(), 0); // Total debt is erased
@@ -664,7 +664,7 @@ contract VatUnitTest is Test {
         assertEq(vat.ilks(ILK).rate, RAY + delta); // The debt multiplier is now 1.1
         assertEq(vat.dai(feeRecipient), ART * delta); // The fee recipient receives 1 internal Dai
         assertEq(vat.debt(), ART * (RAY + delta)); // Global debt increases to 11 Dai
-        assertEq(vat.ilks(ILK).art, ART); // Total normalized debt remains 10
+        assertEq(vat.ilks(ILK).Art, ART); // Total normalized debt remains 10
         assertEq(vat.urns(ILK, address(this)).art, ART); // The vault's normalized debt remains 10
         assertEq(vat.urns(ILK, address(this)).ink, LOCKED_COLLATERAL); // Locked collateral remains 10 units
         assertEq(vat.dai(address(this)), ART * RAY); // The borrower still holds the original 10 internal Dai
@@ -693,7 +693,7 @@ contract VatUnitTest is Test {
         assertEq(vat.ilks(ILK).rate, RAY - delta); // The debt multiplier is now 0.9
         assertEq(vat.dai(feeRecipient), 0); // The other address remains unfunded
         assertEq(vat.debt(), ART * (RAY - delta)); // Global debt decreases to 9 Dai
-        assertEq(vat.ilks(ILK).art, ART); // Total normalized debt remains 10
+        assertEq(vat.ilks(ILK).Art, ART); // Total normalized debt remains 10
         assertEq(vat.urns(ILK, address(this)).art, ART); // The vault's normalized debt remains 10
         assertEq(vat.urns(ILK, address(this)).ink, LOCKED_COLLATERAL); // Locked collateral remains 10 units
         assertEq(vat.dai(address(this)), ART * RAY - adjustment); // 1 internal Dai is removed from the borrower

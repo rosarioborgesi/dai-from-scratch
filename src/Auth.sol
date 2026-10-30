@@ -23,14 +23,14 @@ abstract contract Auth {
 
     // Grants administrative permissions to the user
     function rely(address user) external auth {
-        _beforeAuthChange();
+        _beforeRely();
         s_wards[user] = 1;
         emit Rely(user);
     }
 
     // Revokes administrative permissions to the user
     function deny(address user) external auth {
-        _beforeAuthChange();
+        _beforeDeny();
         s_wards[user] = 0;
         emit Deny(user);
     }
@@ -38,8 +38,11 @@ abstract contract Auth {
     // Revert with a custom error in the auth modifier
     function _revertNotAuthorized() internal pure virtual;
 
-    // Check to be made before changing authorization
-    function _beforeAuthChange() internal view virtual {}
+    // Checks to be made before granting authorization.
+    function _beforeRely() internal view virtual {}
+
+    // Checks to be made before revoking authorization.
+    function _beforeDeny() internal view virtual {}
 
     function wards(address user) external view returns (uint256) {
         return s_wards[user];

@@ -26,8 +26,8 @@ pragma solidity 0.8.35;
 import {Math} from "./libraries/Math.sol";
 import {Shutdown} from "./Shutdown.sol";
 
-// It is the core Vault engine of dss.
-// It stores and tracks all the associated Dai and collateral balances.
+// It is the core accounting system and engine of the DSS protcol.
+// It stores free collateral (gem), locked collateral (ink), normalized debt (art), debt (dai) and bad debt (sin).
 contract Vat is Shutdown {
     ////////////////////////////////
     //            Errors          //
@@ -44,6 +44,10 @@ contract Vat is Shutdown {
     error Vat__Dust();
     error Vat__FileUnrecognizedParam();
     error Vat__NotAllowed();
+    error Vat__NotSafeSrc();
+    error Vat__NotSafeDst();
+    error Vat__DustSrc();
+    error Vat__DustDst();
 
     ///////////////////////////////////
     //            Libraries          //
@@ -56,14 +60,14 @@ contract Vat is Shutdown {
 
     // Data structure for a collateral type
     struct Ilk {
-        uint256 art; // Total Normalized Debt         [wad]
+        uint256 Art; // Total Normalized Debt         [wad]
         uint256 rate; // Accumulated Debt Multiplier   [ray]     Actual vault debt = art × rate
         uint256 spot; // Price with Safety Margin      [ray]
         uint256 line; // Debt Ceiling                  [rad]
         uint256 dust; // Urn's Minimum Allowe Debt     [rad]
     }
 
-    // Accounting record for one Vault
+    // Accounting record for one Vault. Each user has its own vault (urn) -> s_urns[ETH-A][user]
     struct Urn {
         uint256 ink; // [wad] User's locked Collateral
         uint256 art; // [wad] Normalized debt that the user owes. Actual amount owed is debt = urn.art × rate / RAY
@@ -97,7 +101,7 @@ contract Vat is Shutdown {
     //  - Convert it into wallet Dai through DaiJoin.exit.
     mapping(address account => uint256 balance) private s_dai; // [rad]
 
-    // Stores unbacked debt assigned to a user
+    // Stores unbacked debt assigned to a user. Total system debt assigned to the Vow
     mapping(address user => uint256 balance) private s_sin; // [rad]
 
     uint256 private s_debt; // Total Dai Issued    [rad]
@@ -200,7 +204,7 @@ contract Vat is Shutdown {
         // Updated the vault’s normalized debt
         urn.art = urn.art.add(dart);
         // Update the total normalized debt across all vaults of this collateral type.
-        ilk.art = ilk.art.add(dart);
+        ilk.Art = ilk.Art.add(dart);
 
         // Calculate the change in the Dai debt
         // - dart is the requested change in normalized debt.
@@ -217,7 +221,7 @@ contract Vat is Shutdown {
 
         // When borrowing (dart > 0), rejects debt exceeding either the collateral type’s ceiling (ilk.line)
         // or the global ceiling (s_line).
-        if (dart > 0 && (ilk.art * ilk.rate > ilk.line || s_debt > s_Line)) {
+        if (dart > 0 && (ilk.Art * ilk.rate > ilk.line || s_debt > s_Line)) {
             revert Vat__CeilingExceeded();
         }
 
@@ -273,6 +277,49 @@ contract Vat is Shutdown {
         s_ilks[i] = ilk;
     }
 
+    /**
+     * @notice Transfers locked collateral and normalized debt between vaults of the same collateral type.
+     * @dev Both owners must consent and both resulting vaults must be safe and non-dusty.
+     *      Total debt, free collateral and internal Dai balances remain unchanged.
+     *      Like the reference Vat, this operation remains available after shutdown.
+     * @param ilk Collateral type
+     * @param src Source vault address
+     * @param dst Destination vault address
+     * @param dink Collateral to move [wad]; negative values move from dst to src
+     * @param dart Normalized debt to move [wad]; negative values move from dst to src
+     */
+    function fork(bytes32 ilk, address src, address dst, int256 dink, int256 dart) external {
+        Urn storage u = s_urns[ilk][src];
+        Urn storage v = s_urns[ilk][dst];
+        Ilk storage i = s_ilks[ilk];
+
+        u.ink = u.ink.sub(dink);
+        u.art = u.art.sub(dart);
+        v.ink = v.ink.add(dink);
+        v.art = v.art.add(dart);
+
+        uint256 utab = u.art * i.rate;
+        uint256 vtab = v.art * i.rate;
+
+        if (!_wish(src, msg.sender) || !_wish(dst, msg.sender)) {
+            revert Vat__NotAllowed();
+        }
+
+        if (utab > u.ink * i.spot) {
+            revert Vat__NotSafeSrc();
+        }
+        if (vtab > v.ink * i.spot) {
+            revert Vat__NotSafeDst();
+        }
+
+        if (u.art != 0 && utab < i.dust) {
+            revert Vat__DustSrc();
+        }
+        if (v.art != 0 && vtab < i.dust) {
+            revert Vat__DustDst();
+        }
+    }
+
     // Changes the accumuated debt multiplier for a collateral type and
     // accounts for the resulting change in debt
     //
@@ -292,9 +339,9 @@ contract Vat is Shutdown {
         ilk.rate = ilk.rate.add(rate);
 
         // Update the vault's debt
-        // ilk.art is the total normalized debt for that collateral type
+        // ilk.Art is the total normalized debt for that collateral type
         // Vault's debt = urn.art * ilk.rate
-        int256 rad = ilk.art.mul(rate);
+        int256 rad = ilk.Art.mul(rate);
 
         // Apply the adjustment to u's internal Dai balance
         // - Positive rad: credits Dai to u
@@ -316,6 +363,51 @@ contract Vat is Shutdown {
         s_dai[destination] += rad;
     }
 
+    // This is a privileged confiscation function. In a typical liquidation,
+    // it removes collateral and debt from a Vault, credits the collateral to an auction contract,
+    // and records the removed debt as system bad debt.
+    // Paramenters
+    // - i: collateral type
+    // - u: address identifying the Vault
+    // - v: address whose free collateral balance changes
+    // - w: address whose bad debt balance changes, typically the Vow
+    // - dink: signed change in the Vault's collateral
+    // - dart: signed change in the Vault's normalized debt
+    // The key is that liquidation passes negative dink and dart
+    function grab(bytes32 i, address u, address v, address w, int256 dink, int256 dart) external auth {
+        Urn storage urn = s_urns[i][u];
+        Ilk storage ilk = s_ilks[i];
+
+        // Negative dink and dart decrease all 3
+        urn.ink = urn.ink.add(dink); // Vault's locked collateral
+        urn.art = urn.art.add(dart); // Vault's normalized debt
+        ilk.Art = ilk.Art.add(dart); // Collateral's type normalzied debt
+
+        // Dai (debt) = dart (normalzied debt) x rate (accumulated rate)
+        int256 dtab = ilk.rate.mul(dart);
+
+        // Subtracting negative values increases these balances
+        s_gem[i][v] = s_gem[i][v].sub(dink); // the seized collateral becomes free collateral credited to v inside Vat.
+        s_sin[w] = s_sin[w].sub(dtab); // the removed Vault debt becomes bad debt assigned to w
+        s_vice = s_vice.sub(dtab); // total system bad debt increases by the same amount
+    }
+
+    // Cancels the caller’s unbacked debt using the caller’s internal Dai
+    function heal(uint256 rad) external {
+        s_sin[msg.sender] -= rad; // Cancel caller's unbacked debt
+        s_dai[msg.sender] -= rad; // Consume caller's internal Dai
+        s_vice -= rad; // Reduce total unbacked debt
+        s_debt -= rad; // Reduce total Dai issued
+    }
+
+    // Creates internal Dai without collateral backing
+    function suck(address u, address v, uint256 rad) external auth {
+        s_sin[u] += rad; // Assign unbacked debt to u
+        s_dai[v] += rad; // Give spendable internal Dai to v
+        s_vice += rad; // Increase total unbacked debt
+        s_debt += rad; // Increase total Dai issued
+    }
+
     ////////////////////////////////////////////
     //            Internal Functions          //
     ////////////////////////////////////////////
@@ -324,7 +416,9 @@ contract Vat is Shutdown {
     }
 
     // Check that Vat is not shutdown
-    function _beforeAuthChange() internal view override isAlive {}
+    function _beforeRely() internal view override isAlive {}
+
+    function _beforeDeny() internal view override isAlive {}
 
     function _revertNotAuthorized() internal pure override {
         revert Vat__NotAuthorized();

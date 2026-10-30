@@ -51,7 +51,7 @@ contract DssProxyIntegrationTest is Test {
 
         // A $3,000 WETH price and 150% collateralization support 2,000 Dai per WETH.
         oracle.setVal(bytes32(uint256(3_000 ether))); // Oracle price in wad.
-        
+
         // Configure WETH_A collateral in the spotter
         spotter.file(WETH_A, "pip", address(oracle));
         spotter.file(WETH_A, "mat", 15e26); // Liquidation ratio in ray.
@@ -153,7 +153,7 @@ contract DssProxyIntegrationTest is Test {
 
         // Joining creates an internal balance; it does not repay the vault's debt.
         assertEq(vat.urns(WETH_A, user).art, initialDaiBalance); // User's vault normalized debt: 100
-        assertEq(vat.ilks(WETH_A).art, initialDaiBalance);
+        assertEq(vat.ilks(WETH_A).Art, initialDaiBalance);
         assertEq(vat.debt(), initialDaiBalance * RAY);
         assertEq(vat.urns(WETH_A, user).ink, collateral); // Locked collateral 1 WETH
         assertEq(weth.balanceOf(address(gemJoin)), collateral);
@@ -473,7 +473,7 @@ contract DssProxyIntegrationTest is Test {
         // With rate = RAY, normalized debt equals the requested Dai amount.
         assertEq(vat.ilks(WETH_A).rate, RAY);
         assertEq(urn.art, borrowed);
-        assertEq(vat.ilks(WETH_A).art, borrowed);
+        assertEq(vat.ilks(WETH_A).Art, borrowed);
         assertEq(vat.debt(), borrowed * RAY);
         assertEq(dai.balanceOf(user), borrowed);
         assertEq(dai.totalSupply(), borrowed);
@@ -519,7 +519,7 @@ contract DssProxyIntegrationTest is Test {
         // With rate = RAY, normalized debt equals the requested Dai amount.
         assertEq(vat.ilks(WETH_A).rate, RAY);
         assertEq(urn.art, borrowed); // User's normalized debt in the vault
-        assertEq(vat.ilks(WETH_A).art, borrowed); // Total normalized debt for WETH_A collateral
+        assertEq(vat.ilks(WETH_A).Art, borrowed); // Total normalized debt for WETH_A collateral
         assertEq(vat.debt(), borrowed * RAY); // Total Dai Issued
         assertEq(dai.balanceOf(user), borrowed);
         assertEq(dai.totalSupply(), borrowed);
@@ -578,7 +578,7 @@ contract DssProxyIntegrationTest is Test {
         Vat.Urn memory urn = vat.urns(WETH_A, user);
         assertEq(urn.ink, collateral); // User's collateral in the vault 2 ether
         assertEq(urn.art, expectedArt); // User's vault normalized debt 285.71
-        assertEq(vat.ilks(WETH_A).art, expectedArt);
+        assertEq(vat.ilks(WETH_A).Art, expectedArt);
         assertEq(dai.balanceOf(user), borrowed); // User's Dai balance: 300 Dai
         assertEq(dai.totalSupply(), borrowed); // Dai's total supply: 300 Dai
 
@@ -649,7 +649,7 @@ contract DssProxyIntegrationTest is Test {
         assertEq(jug.ilks(WETH_A).rho, initalTimestamp + 2); // last accrual time rho
         assertEq(vat.urns(WETH_A, user).ink, collateral); // User's locked collateral in the Vault: 2 WETH
         assertEq(vat.urns(WETH_A, user).art, expectedArt); // User's normalized debt in the vault 372.108843537 Dai
-        assertEq(vat.ilks(WETH_A).art, expectedArt); // Total normalized debt for the collateral WETH-A
+        assertEq(vat.ilks(WETH_A).Art, expectedArt); // Total normalized debt for the collateral WETH-A
         assertEq(vat.dai(feeRecipient), accruedFees);
         assertEq(vat.debt(), expectedArt * expectedRate); // Total Dai issued = 372.108843537 × 1.1025 ≈ 410.25 Dai
         assertEq(dai.balanceOf(user), initialBorrowed + additionalBorrowed); // User receives 400 Dai
@@ -689,7 +689,7 @@ contract DssProxyIntegrationTest is Test {
         // At rate = RAY, repaying 40 DAI reduces normalized debt from 100 to 60.
         Vat.Urn memory urn = vat.urns(WETH_A, user);
         assertEq(urn.art, remaining); // Urn's Normalized debt: borrowed - repaid = 100 ether - 40 ether = 60 ether
-        assertEq(vat.ilks(WETH_A).art, remaining); // Vat's Normalized debt: borrowed - repaid = 100 ether - 40 ether = 60 ether
+        assertEq(vat.ilks(WETH_A).Art, remaining); // Vat's Normalized debt: borrowed - repaid = 100 ether - 40 ether = 60 ether
         assertEq(urn.art * vat.ilks(WETH_A).rate, remaining * RAY); // Actual debt (Dai) = normalized debt x rate =  60 ether x RAY
         assertEq(vat.debt(), remaining * RAY); // Actual debt (Dai) = normalized debt x rate =  60 ether x RAY
 
@@ -762,7 +762,7 @@ contract DssProxyIntegrationTest is Test {
 
         Vat.Urn memory urn = vat.urns(WETH_A, user);
         assertEq(urn.art, 0); // Vault's normalized debt 0
-        assertEq(vat.ilks(WETH_A).art, 0); // Collateral's debt 0
+        assertEq(vat.ilks(WETH_A).Art, 0); // Collateral's debt 0
         assertEq(vat.debt(), 0); // Total debt 0
 
         // All borrowed DAI has been burned and all internal DAI consumed.
@@ -813,7 +813,7 @@ contract DssProxyIntegrationTest is Test {
         Vat.Urn memory urn = vat.urns(WETH_A, user);
         assertEq(urn.ink, remainingCollateral); // Locked collateral: 2 ether - 1 ether = 1 ether
         assertEq(urn.art, remainingDebt); // User's normalized debt: 3_000 ether - 1_500 ether = 1_500 ether
-        assertEq(vat.ilks(WETH_A).art, remainingDebt); // Collateral's type normalized debt: 3_000 ether - 1_500 ether = 1_500 ether
+        assertEq(vat.ilks(WETH_A).Art, remainingDebt); // Collateral's type normalized debt: 3_000 ether - 1_500 ether = 1_500 ether
         assertEq(vat.debt(), remainingDebt * RAY);
         assertEq(dai.balanceOf(user), remainingDebt); // User's dai = 3_000 ether - 1_500 ether
         assertEq(dai.totalSupply(), remainingDebt);
@@ -864,7 +864,7 @@ contract DssProxyIntegrationTest is Test {
         // All debt is repaid, while one ETH remains locked in the vault.
         assertEq(vat.urns(WETH_A, user).art, 0);
         assertEq(vat.urns(WETH_A, user).ink, 1 ether);
-        assertEq(vat.ilks(WETH_A).art, 0);
+        assertEq(vat.ilks(WETH_A).Art, 0);
         assertEq(vat.debt(), 0);
         assertEq(dai.balanceOf(user), 0);
         assertEq(dai.totalSupply(), 0);
@@ -898,7 +898,7 @@ contract DssProxyIntegrationTest is Test {
 
         assertEq(vat.urns(WETH_A, user).ink, 1 ether);
         assertEq(vat.urns(WETH_A, user).art, 1_500 ether);
-        assertEq(vat.ilks(WETH_A).art, 1_500 ether);
+        assertEq(vat.ilks(WETH_A).Art, 1_500 ether);
         assertEq(vat.debt(), 1_500 ether * RAY);
         assertEq(dai.balanceOf(user), 1_500 ether);
         assertEq(dai.totalSupply(), 1_500 ether);
@@ -964,7 +964,7 @@ contract DssProxyIntegrationTest is Test {
         Vat.Urn memory urn = vat.urns(WETH_A, user);
         assertEq(urn.art, 0);
         assertEq(urn.ink, remainingCollateral);
-        assertEq(vat.ilks(WETH_A).art, 0);
+        assertEq(vat.ilks(WETH_A).Art, 0);
         assertEq(vat.debt(), 0);
         assertEq(dai.balanceOf(user), 0);
         assertEq(dai.totalSupply(), 0);

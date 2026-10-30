@@ -23,8 +23,13 @@ abstract contract Shutdown is Auth {
     }
 
     function cage() external auth {
-        s_live = 0;
+        _cage();
         emit Cage();
+    }
+
+    // Override to extend shutdown, calling super._cage() before external interactions.
+    function _cage() internal virtual {
+        s_live = 0;
     }
 
     function _revertNotLive() internal pure virtual;

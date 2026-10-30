@@ -116,15 +116,15 @@ contract Spotter is Shutdown {
     }
 
     // How much debt (DAI) does 1 unit of collateral (spot) support?
-    // Reads a collateral's type oracle price, 
-    // adjust it for the required collateralization ratio, 
+    // Reads a collateral's type oracle price,
+    // adjust it for the required collateralization ratio,
     // and stores the result in Vat.
     // - ilk is the collateral type
     function poke(bytes32 ilk) external {
         // 1. Read the oracle
         // pip is the configured price feed. It returns:
         //  - val: the collateral price [wad]
-        //  - has: whether the feed considers that price valid. 
+        //  - has: whether the feed considers that price valid.
         (bytes32 val, bool has) = s_ilks[ilk].pip.peek();
 
         // 2. Calculate the safety-adjusted price (spot)
@@ -155,6 +155,10 @@ contract Spotter is Shutdown {
     //////////////////////////////////////////////////////
     //      External & Public View & Pure Functions     //
     //////////////////////////////////////////////////////
+    function par() external view returns (uint256) {
+        return s_par;
+    }
+
     function ilks(bytes32 ilk) external view returns (Ilk memory) {
         return s_ilks[ilk];
     }
